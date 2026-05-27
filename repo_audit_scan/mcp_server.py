@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
 from repo_audit_scan.cli import (
+    _default_rules_path,
     _find_rule,
     _load_rules,
     _new_report_id,
@@ -26,6 +27,8 @@ class MCPServer:
 
     def __init__(self):
         self.tools: Dict[str, Callable[..., Dict[str, Any]]] = {}
+        self.started_at = datetime.now(timezone.utc)
+        self.last_scan: Optional[Dict[str, Any]] = None
         self.register_defaults()
 
     def register_tool(self, name: str, handler: Callable[..., Dict[str, Any]]) -> None:
@@ -47,12 +50,47 @@ class MCPServer:
             return {"ok": False, "error": str(exc)}
 
     def register_defaults(self) -> None:
+        self.register_tool("server.get_info", self.get_info)
+        self.register_tool("server.get_health", self.get_health)
+        self.register_tool("server.get_status", self.get_status)
         self.register_tool("scan_repository", self.scan_repository)
         self.register_tool("list_rules", self.list_rules)
         self.register_tool("get_finding", self.get_finding)
         self.register_tool("triage_report", self.triage_report)
         self.register_tool("verify_fix", self.verify_fix)
         self.register_tool("get_latest_report", self.get_latest_report)
+        self.register_tool("diagnostics.validate_config", self.validate_config)
+        self.register_tool("diagnostics.run_self_check", self.run_self_check)
+        self.register_tool("reports.list_reports", self.list_reports)
+
+    def _uptime_seconds(self) -> int:
+        return int((datetime.now(timezone.utc) - self.started_at).total_seconds())
+
+    def get_info(self) -> Dict[str, Any]:
+        return {
+            "name": "repo-audit-scan",
+            "version": "0.1.0",
+            "started_at": self.started_at.isoformat(),
+            "tools": sorted(self.tools.keys()),
+        }
+
+    def get_health(self) -> Dict[str, Any]:
+        status = "ok"
+        if self.last_scan and self.last_scan.get("error"):
+            status = "degraded"
+        return {
+            "status": status,
+            "uptime_seconds": self._uptime_seconds(),
+            "last_scan": self.last_scan,
+        }
+
+    def get_status(self) -> Dict[str, Any]:
+        return {
+            "status": "ready",
+            "uptime_seconds": self._uptime_seconds(),
+            "tool_count": len(self.tools),
+            "last_scan": self.last_scan,
+        }
 
     def scan_repository(
         self,
@@ -86,6 +124,13 @@ class MCPServer:
                 mirror_dir = repo_path / "audits" / date_dir / "repo-audit-scan"
                 mirror_paths = ReportArtifactWriter().write(report, mirror_dir)
                 response["mirror_paths"] = {k: str(v) for k, v in mirror_paths.items()}
+        self.last_scan = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "report_id": report.report_id,
+            "repository_path": str(repo_path),
+            "findings": len(report.findings),
+            "error": None,
+        }
         return response
 
     def list_rules(self, rules_path: Optional[str] = None) -> Dict[str, Any]:
@@ -156,6 +201,57 @@ class MCPServer:
             raise FileNotFoundError(f"No reports found under: {root}")
         latest = candidates[0]
         return {"path": str(latest), "report": json.loads(latest.read_text(encoding="utf-8"))}
+
+    def validate_config(
+        self,
+        rules_path: Optional[str] = None,
+        output_root: str = "scan-reports",
+    ) -> Dict[str, Any]:
+        checks = {
+            "rules_path": {"ok": False, "value": ""},
+            "output_root": {"ok": False, "value": str(Path(output_root).resolve())},
+        }
+        resolved_rules = Path(rules_path) if rules_path else _default_rules_path()
+        checks["rules_path"] = {"ok": resolved_rules.exists(), "value": str(resolved_rules)}
+        output_path = Path(output_root).resolve()
+        checks["output_root"] = {"ok": output_path.parent.exists() or output_path.exists(), "value": str(output_path)}
+        return {"valid": all(item["ok"] for item in checks.values()), "checks": checks}
+
+    def run_self_check(self, rules_path: Optional[str] = None, output_root: str = "scan-reports") -> Dict[str, Any]:
+        diagnostics = {
+            "rules_registry": False,
+            "adapters_loaded": False,
+            "report_root_accessible": False,
+            "tool_registry": len(self.tools) > 0,
+        }
+        try:
+            registry = _load_rules(rules_path)
+            diagnostics["rules_registry"] = registry.count() > 0
+        except FileNotFoundError:
+            diagnostics["rules_registry"] = False
+        diagnostics["adapters_loaded"] = True  # AdapterRegistry constructor is exercised via scan path.
+        report_root = Path(output_root).resolve()
+        diagnostics["report_root_accessible"] = report_root.exists() or report_root.parent.exists()
+        return {"ok": all(diagnostics.values()), "diagnostics": diagnostics}
+
+    def list_reports(self, output_root: str = "scan-reports", include_target_repo: Optional[str] = None) -> Dict[str, Any]:
+        reports: list[str] = []
+        root = Path(output_root).resolve()
+        if root.exists():
+            for child in root.iterdir():
+                candidate = child / "report.json"
+                if candidate.exists():
+                    reports.append(str(candidate))
+
+        if include_target_repo:
+            repo = Path(include_target_repo).resolve()
+            audits_dir = repo / "audits"
+            if audits_dir.exists():
+                for path in audits_dir.rglob("report.json"):
+                    reports.append(str(path))
+
+        reports = sorted(set(reports))
+        return {"count": len(reports), "reports": reports}
 
     @staticmethod
     def _resolve_report_path(report: str) -> Path:

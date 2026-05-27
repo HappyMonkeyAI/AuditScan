@@ -1,8 +1,8 @@
 # AuditScan MVP — Progress Tracker
 
-**Last synced:** 2026-05-27 T-014 COMPLETE (MCP core tools and workspace-only mirroring default)
+**Last synced:** 2026-05-27 T-015 COMPLETE (operational MCP support and diagnostics)
 **Total tasks:** 21 MVP + 5 Roadmap
-**Completed:** 10 | **In Progress:** 0 | **Pending:** 11
+**Completed:** 11 | **In Progress:** 0 | **Pending:** 10
 
 ---
 
@@ -16,7 +16,7 @@
 | **D — Adapters** | T-006 ✅, T-007..T-010 | 🟢 Core complete | T-006 base framework done; T-007-T-010 ready |
 | **E — Reporting** | T-011 complete, T-012 complete | Complete | Ready for CLI/MCP entrypoints |
 | **F — Entrypoints** | T-013 complete, T-014 complete | Complete | Ready for operational surface |
-| **G — Operational** | T-015 | 🔴 Blocked on F, D | Diagnostics |
+| **G — Operational** | T-015 complete | Complete | Operational surface available |
 | **H — Enrichment** | T-016 | 🔴 Blocked on A, B, E | Lockfile parsing |
 | **I — Verification** | T-017 | 🔴 Blocked on B, F | verify_fix |
 | **J — Safety** | T-018 | 🔴 Blocked on A, E, F | Redaction ✅ done |
@@ -26,6 +26,12 @@
 ---
 
 ## ✅ Completed
+
+### T-015 - Operational MCP support and diagnostics [COMPLETED 2026-05-27]
+- Added operational handlers in `repo_audit_scan/mcp_server.py`: `server.get_info`, `server.get_health`, `server.get_status`, `diagnostics.validate_config`, `diagnostics.run_self_check`, and `reports.list_reports`.
+- Added uptime tracking and last-scan state so health/status return meaningful runtime context.
+- Added operational MCP tests in `repo_audit_scan/tests/test_mcp_server.py` for tool registration and handler response shapes.
+- Verification: `uv run --extra dev python -m pytest -q` -> 94 passed.
 
 ### T-014 - MCP server core tools and workspace-only mirroring default [COMPLETED 2026-05-27]
 - Replaced MCP stub with functional handlers in `repo_audit_scan/mcp_server.py`.
@@ -182,7 +188,7 @@
 
 ## 📋 Pending (in critical-path order)
 
-T-015 (Ops) → T-021 (Docs)
+T-016 (Enrichment) → T-017 (Verify parity hardening) → T-018 (Safety hardening) → T-020 (cross-cut tests) → T-021 (Docs)
 
 ---
 

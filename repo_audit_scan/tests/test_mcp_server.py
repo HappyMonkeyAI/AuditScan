@@ -13,11 +13,17 @@ def test_mcp_server_registers_default_tools():
     tools = server.list_tools()
 
     assert "scan_repository" in tools
+    assert "server.get_info" in tools
+    assert "server.get_health" in tools
+    assert "server.get_status" in tools
     assert "list_rules" in tools
     assert "get_finding" in tools
     assert "triage_report" in tools
     assert "verify_fix" in tools
     assert "get_latest_report" in tools
+    assert "diagnostics.validate_config" in tools
+    assert "diagnostics.run_self_check" in tools
+    assert "reports.list_reports" in tools
 
 
 def test_scan_and_triage_and_verify_flow(tmp_path):
@@ -82,3 +88,31 @@ def test_scan_repository_respects_workspace_only_default(tmp_path):
     )
     assert "workspace_paths" in result
     assert "mirror_paths" not in result
+
+
+def test_operational_handlers_return_expected_shapes(tmp_path):
+    """Operational handlers should expose info, health, status, diagnostics, and reports list."""
+    server = MCPServer()
+    info = server.get_info()
+    assert info["name"] == "repo-audit-scan"
+    assert "tools" in info
+
+    health = server.get_health()
+    assert health["status"] in {"ok", "degraded"}
+    assert isinstance(health["uptime_seconds"], int)
+
+    status = server.get_status()
+    assert status["status"] == "ready"
+    assert status["tool_count"] >= 1
+
+    validate = server.validate_config(output_root=str(tmp_path / "reports"))
+    assert "valid" in validate
+    assert "checks" in validate
+
+    self_check = server.run_self_check(output_root=str(tmp_path / "reports"))
+    assert "ok" in self_check
+    assert "diagnostics" in self_check
+
+    listed = server.list_reports(output_root=str(tmp_path / "reports"))
+    assert listed["count"] == 0
+    assert listed["reports"] == []

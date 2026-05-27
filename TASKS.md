@@ -135,8 +135,8 @@ Tracks:
 **Track:** F | **Depends on:** T-003, T-005, T-011, T-012 | **Status:** COMPLETE
 
 ### T-015 — Operational support: get_info / get_health / get_status, diagnostics, resources
-- [ ] Status
-**Track:** G | **Depends on:** T-014, T-006 | **Status:** 🔴 Pending
+- [x] Status
+**Track:** G | **Depends on:** T-014, T-006 | **Status:** COMPLETE
 
 ### T-016 — Dependency enrichment (lockfile-only + opt-in OSV/GHSA)
 - [ ] Status
