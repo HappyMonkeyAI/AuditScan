@@ -223,7 +223,8 @@ def _verify_finding(
 
     rule_id = finding["rule_id"]
     rule = _find_rule(registry, rule_id)
-    repo_path = repo_override or Path(report_data["metadata"]["repository_path"])
+    metadata = report_data.get("metadata", {})
+    repo_path = repo_override or Path(metadata.get("repository_path", "."))
 
     adapters = AdapterRegistry()
     remaining: List[str] = []
@@ -243,17 +244,22 @@ def _verify_finding(
             remaining.append(f"{file_path}:unreadable")
             continue
         adapter = adapters.resolve_adapter(str(full_path))
-        if adapter is None:
-            continue
-        context = ScanContext(file_path=file_path, file_content=content, language=adapter.language)
-        if not adapter.supports_rule(rule):
-            continue
-        results = adapter.scan(context, rule)
-        if results:
-            for result in results:
-                for item in result.evidence:
-                    loc = f"{item.file_path}:{item.line_number}" if item.line_number else item.file_path
-                    remaining.append(loc)
+        if adapter is not None:
+            context = ScanContext(file_path=file_path, file_content=content, language=adapter.language)
+            if adapter.supports_rule(rule):
+                results = adapter.scan(context, rule)
+                if results:
+                    for result in results:
+                        for item in result.evidence:
+                            loc = f"{item.file_path}:{item.line_number}" if item.line_number else item.file_path
+                            remaining.append(loc)
+                    continue
+
+        # Fallback for findings that are not adapter-backed (for example lockfile dependency checks).
+        snippet = evidence.get("code_snippet")
+        if snippet and str(snippet) in content:
+            line_no = evidence.get("line_number")
+            remaining.append(f"{file_path}:{line_no}" if line_no else file_path)
 
     return {
         "finding_id": finding_id,

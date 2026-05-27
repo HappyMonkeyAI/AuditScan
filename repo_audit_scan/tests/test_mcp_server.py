@@ -133,3 +133,45 @@ def test_scan_repository_with_dependency_enrichment_flag_is_fail_open(tmp_path, 
         fail_open_on_enrichment_error=True,
     )
     assert result["findings"] >= 1
+
+
+def test_mcp_verify_dependency_finding_uses_snippet_fallback(tmp_path):
+    """MCP verify_fix should re-check non-adapter evidence snippets for dependency findings."""
+    from repo_audit_scan.models import Confidence, Evidence, Finding, Report, ScanMetadata, Severity
+    from repo_audit_scan.reporting import JSONReportWriter
+
+    server = MCPServer()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    req = repo / "requirements.txt"
+    req.write_text("requests==2.20.0\n", encoding="utf-8")
+
+    metadata = ScanMetadata(
+        schema_version="1.0",
+        tool_version="0.1.0",
+        scan_timestamp="2026-05-28T00:00:00Z",
+        repository_path=str(repo),
+        scanned_files_count=1,
+        skipped_files_count=0,
+    )
+    finding = Finding(
+        finding_id="finding-dep-001",
+        rule_id="general-001",
+        rule_title="Known vulnerable dependency",
+        category="dependency",
+        severity=Severity.HIGH,
+        confidence=Confidence.HIGH,
+        evidence=[Evidence(file_path="requirements.txt", line_number=1, code_snippet="requests==2.20.0")],
+        remediation_guidance="Upgrade requests.",
+    )
+    report = Report(report_id="dep-report-001", metadata=metadata, findings=[finding], summary="dep test")
+    report_path = tmp_path / "report.json"
+    report_path.write_text(JSONReportWriter().to_json(report), encoding="utf-8")
+
+    unresolved = server.verify_fix(report=str(report_path), finding_id="finding-dep-001")
+    assert unresolved["resolved"] is False
+    assert unresolved["remaining_locations"] == ["requirements.txt:1"]
+
+    req.write_text("requests==2.32.0\n", encoding="utf-8")
+    resolved = server.verify_fix(report=str(report_path), finding_id="finding-dep-001")
+    assert resolved["resolved"] is True

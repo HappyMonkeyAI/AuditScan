@@ -151,3 +151,45 @@ def test_scan_command_enrichment_flag_is_fail_open(tmp_path, capsys, monkeypatch
 
     assert code == 0
     assert payload["findings"] >= 1
+
+
+def test_verify_dependency_finding_uses_snippet_fallback(tmp_path, capsys):
+    """Verify should remain unresolved for lockfile findings when snippet is still present."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    req = repo / "requirements.txt"
+    req.write_text("requests==2.20.0\n", encoding="utf-8")
+
+    metadata = ScanMetadata(
+        schema_version="1.0",
+        tool_version="0.1.0",
+        scan_timestamp="2026-05-28T00:00:00Z",
+        repository_path=str(repo),
+        scanned_files_count=1,
+        skipped_files_count=0,
+    )
+    finding = Finding(
+        finding_id="finding-dep-001",
+        rule_id="general-001",
+        rule_title="Known vulnerable dependency",
+        category="dependency",
+        severity=Severity.HIGH,
+        confidence=Confidence.HIGH,
+        evidence=[Evidence(file_path="requirements.txt", line_number=1, code_snippet="requests==2.20.0")],
+        remediation_guidance="Upgrade requests.",
+    )
+    report = Report(report_id="dep-report-001", metadata=metadata, findings=[finding], summary="dep test")
+    report_path = tmp_path / "dep-report.json"
+    report_path.write_text(JSONReportWriter().to_json(report), encoding="utf-8")
+
+    unresolved = main(["verify", str(report_path), "finding-dep-001"])
+    unresolved_payload = json.loads(capsys.readouterr().out)
+    assert unresolved == 0
+    assert unresolved_payload["resolved"] is False
+    assert unresolved_payload["remaining_locations"] == ["requirements.txt:1"]
+
+    req.write_text("requests==2.32.0\n", encoding="utf-8")
+    resolved = main(["verify", str(report_path), "finding-dep-001"])
+    resolved_payload = json.loads(capsys.readouterr().out)
+    assert resolved == 0
+    assert resolved_payload["resolved"] is True

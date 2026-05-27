@@ -143,8 +143,8 @@ Tracks:
 **Track:** H | **Depends on:** T-002, T-003, T-011 | **Status:** COMPLETE
 
 ### T-017 — verify_fix (CLI + MCP parity)
-- [ ] Status
-**Track:** I | **Depends on:** T-003, T-014 | **Status:** 🔴 Pending
+- [x] Status
+**Track:** I | **Depends on:** T-003, T-014 | **Status:** COMPLETE
 
 ### T-018 — Safety: redaction, untrusted-content provenance, path containment
 - [ ] Status

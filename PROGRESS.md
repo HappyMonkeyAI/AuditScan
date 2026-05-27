@@ -1,8 +1,8 @@
 # AuditScan MVP — Progress Tracker
 
-**Last synced:** 2026-05-28 T-016 COMPLETE (dependency lockfile scan + opt-in enrichment)
+**Last synced:** 2026-05-28 T-017 COMPLETE (verify_fix parity hardening)
 **Total tasks:** 21 MVP + 5 Roadmap
-**Completed:** 12 | **In Progress:** 0 | **Pending:** 9
+**Completed:** 13 | **In Progress:** 0 | **Pending:** 8
 
 ---
 
@@ -18,7 +18,7 @@
 | **F — Entrypoints** | T-013 complete, T-014 complete | Complete | Ready for operational surface |
 | **G — Operational** | T-015 complete | Complete | Operational surface available |
 | **H — Enrichment** | T-016 complete | 🟢 Complete | Lockfile parsing + opt-in enrichment |
-| **I — Verification** | T-017 | 🔴 Blocked on B, F | verify_fix |
+| **I — Verification** | T-017 complete | 🟢 Complete | verify_fix parity hardened |
 | **J — Safety** | T-018 | 🔴 Blocked on A, E, F | Redaction ✅ done |
 | **K — Tests** | T-019, T-020 | 🟡 Can start with each | Scaffolding + suites |
 | **L — Docs** | T-021 | 🔴 Blocked on F, G | Last task |
@@ -26,6 +26,16 @@
 ---
 
 ## ✅ Completed
+
+### T-017 - verify_fix (CLI + MCP parity) [COMPLETED 2026-05-28]
+- Hardened verification fallback in `repo_audit_scan/cli.py::_verify_finding` for findings that are not adapter-backed (notably dependency lockfile findings).
+- Added content-snippet fallback recheck so verify does not produce false `resolved: true` when evidence is still present in files like `requirements.txt`.
+- Preserved adapter-backed verification path for language-specific rules while adding robust non-adapter behavior.
+- Added CLI test coverage:
+  - `test_verify_dependency_finding_uses_snippet_fallback`
+- Added MCP test coverage:
+  - `test_mcp_verify_dependency_finding_uses_snippet_fallback`
+- Verification: targeted suite passed (`12 passed`).
 
 ### T-016 - Dependency enrichment (lockfile-only + opt-in OSV/GHSA) [COMPLETED 2026-05-28]
 - Added `repo_audit_scan/dependency_enrichment.py` with lockfile parsers for `requirements.txt`, `package-lock.json`, and `composer.lock`.
@@ -202,7 +212,7 @@
 
 ## 📋 Pending (in critical-path order)
 
-T-017 (Verify parity hardening) → T-018 (Safety hardening) → T-020 (cross-cut tests) → T-021 (Docs)
+T-018 (Safety hardening) → T-020 (cross-cut tests) → T-021 (Docs)
 
 ---
 
