@@ -1,8 +1,8 @@
 # AuditScan MVP — Progress Tracker
 
-**Last synced:** 2026-05-27 T-013 COMPLETE (CLI scan/rules/triage/verify)
+**Last synced:** 2026-05-27 T-014 COMPLETE (MCP core tools and workspace-only mirroring default)
 **Total tasks:** 21 MVP + 5 Roadmap
-**Completed:** 9 | **In Progress:** 0 | **Pending:** 12
+**Completed:** 10 | **In Progress:** 0 | **Pending:** 11
 
 ---
 
@@ -15,7 +15,7 @@
 | **C — Scoring** | T-005 ✅ | 🟢 Complete | Ready for E |
 | **D — Adapters** | T-006 ✅, T-007..T-010 | 🟢 Core complete | T-006 base framework done; T-007-T-010 ready |
 | **E — Reporting** | T-011 complete, T-012 complete | Complete | Ready for CLI/MCP entrypoints |
-| **F — Entrypoints** | T-013 complete, T-014 | In progress | MCP remains |
+| **F — Entrypoints** | T-013 complete, T-014 complete | Complete | Ready for operational surface |
 | **G — Operational** | T-015 | 🔴 Blocked on F, D | Diagnostics |
 | **H — Enrichment** | T-016 | 🔴 Blocked on A, B, E | Lockfile parsing |
 | **I — Verification** | T-017 | 🔴 Blocked on B, F | verify_fix |
@@ -26,6 +26,14 @@
 ---
 
 ## ✅ Completed
+
+### T-014 - MCP server core tools and workspace-only mirroring default [COMPLETED 2026-05-27]
+- Replaced MCP stub with functional handlers in `repo_audit_scan/mcp_server.py`.
+- Added tool handlers: `scan_repository`, `list_rules`, `get_finding`, `triage_report`, `verify_fix`, and `get_latest_report`.
+- Implemented MCP scan default behavior to write reports to tool workspace only unless `mirror_to_target_repo` is explicitly set.
+- Added report normalization path so MCP triage and verify ingest enriched report JSON safely.
+- Added `repo_audit_scan/tests/test_mcp_server.py` covering default tools, scan/triage/verify flow, and mirror default behavior.
+- Verification: `uv run --extra dev python -m pytest -q` -> 93 passed.
 
 ### T-013 - CLI entrypoints for scan, rules, triage, and verify [COMPLETED 2026-05-27]
 - Replaced CLI stubs with functional commands in `repo_audit_scan/cli.py`.
@@ -174,7 +182,7 @@
 
 ## 📋 Pending (in critical-path order)
 
-T-014 (MCP) → T-015 (Ops) → T-021 (Docs)
+T-015 (Ops) → T-021 (Docs)
 
 ---
 
