@@ -13,6 +13,7 @@ import uuid
 from repo_audit_scan import __version__
 from repo_audit_scan.adapter_registry import AdapterRegistry
 from repo_audit_scan.adapters_final import ScanContext
+from repo_audit_scan.dependency_enrichment import scan_dependencies
 from repo_audit_scan.inventory import FilesystemWalker
 from repo_audit_scan.logging_setup import setup_logging
 from repo_audit_scan.models import Finding, Report, ScanMetadata
@@ -40,7 +41,12 @@ def _new_report_id() -> str:
     return f"scan-{ts}-{uuid.uuid4().hex[:8]}"
 
 
-def _scan_repository(repo_path: Path, registry: RuleRegistry) -> Report:
+def _scan_repository(
+    repo_path: Path,
+    registry: RuleRegistry,
+    enrich_dependencies: bool = False,
+    fail_open_on_enrichment_error: bool = True,
+) -> Report:
     adapters = AdapterRegistry()
     inventory = FilesystemWalker(str(repo_path)).walk()
 
@@ -66,6 +72,14 @@ def _scan_repository(repo_path: Path, registry: RuleRegistry) -> Report:
         for rule in registry.list_all():
             if adapter.supports_rule(rule):
                 rule_results.extend(adapter.scan(context, rule))
+
+    dependency_results, dependency_metadata = scan_dependencies(
+        repo_path=repo_path,
+        registry=registry,
+        enrich_dependencies=enrich_dependencies,
+        fail_open=fail_open_on_enrichment_error,
+    )
+    rule_results.extend(dependency_results)
 
     findings: List[Finding] = []
     for index, result in enumerate(rule_results, start=1):
@@ -110,11 +124,15 @@ def _scan_repository(repo_path: Path, registry: RuleRegistry) -> Report:
         detected_languages=sorted(inventory.detected_languages.keys()),
         detected_frameworks=sorted(inventory.detected_frameworks),
     )
+    enrichment_note = (
+        f" Dependency scan: {dependency_metadata['packages_scanned']} packages, "
+        f"mode={dependency_metadata['mode']}."
+    )
     return Report(
         report_id=_new_report_id(),
         metadata=metadata,
         findings=findings,
-        summary=f"Scanned {inventory.total_files} files with {len(findings)} findings.",
+        summary=f"Scanned {inventory.total_files} files with {len(findings)} findings.{enrichment_note}",
     )
 
 
@@ -262,7 +280,12 @@ def _handle_scan(args: argparse.Namespace) -> int:
         return 2
 
     registry = _load_rules(args.rules)
-    report = _scan_repository(repo_path, registry)
+    report = _scan_repository(
+        repo_path,
+        registry,
+        enrich_dependencies=args.enrich_dependencies,
+        fail_open_on_enrichment_error=not args.fail_closed_enrichment,
+    )
 
     response: Dict[str, Any] = {
         "report_id": report.report_id,
@@ -348,6 +371,16 @@ def build_parser() -> argparse.ArgumentParser:
     scan_parser.add_argument("--format", choices=["text", "json"], default="text")
     scan_parser.add_argument("--write-reports", dest="write_reports", action="store_true", default=True)
     scan_parser.add_argument("--no-write-reports", dest="write_reports", action="store_false")
+    scan_parser.add_argument(
+        "--enrich-dependencies",
+        action="store_true",
+        help="Enable opt-in dependency advisory enrichment (requires REPO_AUDIT_DEP_ENRICHMENT=true).",
+    )
+    scan_parser.add_argument(
+        "--fail-closed-enrichment",
+        action="store_true",
+        help="Fail scan when enrichment errors occur (default is fail-open).",
+    )
 
     rules_parser = subparsers.add_parser("rules", help="List available rules")
     rules_parser.add_argument("--format", choices=["text", "json"], default="text")

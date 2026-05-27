@@ -136,3 +136,18 @@ def test_scan_command_supports_json_without_writes(tmp_path, capsys):
     assert code == 0
     assert payload["repository_path"] == str(repo.resolve())
     assert "report_paths" not in payload
+
+
+def test_scan_command_enrichment_flag_is_fail_open(tmp_path, capsys, monkeypatch):
+    """Dependency enrichment flag should not fail scan when network enrichment errors."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "requirements.txt").write_text("requests==2.20.0\n", encoding="utf-8")
+    monkeypatch.setenv("REPO_AUDIT_DEP_ENRICHMENT", "true")
+
+    code = main(["scan", str(repo), "--format", "json", "--no-write-reports", "--enrich-dependencies"])
+    out = capsys.readouterr().out
+    payload = json.loads(out)
+
+    assert code == 0
+    assert payload["findings"] >= 1

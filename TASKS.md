@@ -139,8 +139,8 @@ Tracks:
 **Track:** G | **Depends on:** T-014, T-006 | **Status:** COMPLETE
 
 ### T-016 — Dependency enrichment (lockfile-only + opt-in OSV/GHSA)
-- [ ] Status
-**Track:** H | **Depends on:** T-002, T-003, T-011 | **Status:** 🔴 Pending
+- [x] Status
+**Track:** H | **Depends on:** T-002, T-003, T-011 | **Status:** COMPLETE
 
 ### T-017 — verify_fix (CLI + MCP parity)
 - [ ] Status

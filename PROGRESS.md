@@ -1,8 +1,8 @@
 # AuditScan MVP — Progress Tracker
 
-**Last synced:** 2026-05-27 T-015 COMPLETE (operational MCP support and diagnostics)
+**Last synced:** 2026-05-28 T-016 COMPLETE (dependency lockfile scan + opt-in enrichment)
 **Total tasks:** 21 MVP + 5 Roadmap
-**Completed:** 11 | **In Progress:** 0 | **Pending:** 10
+**Completed:** 12 | **In Progress:** 0 | **Pending:** 9
 
 ---
 
@@ -17,7 +17,7 @@
 | **E — Reporting** | T-011 complete, T-012 complete | Complete | Ready for CLI/MCP entrypoints |
 | **F — Entrypoints** | T-013 complete, T-014 complete | Complete | Ready for operational surface |
 | **G — Operational** | T-015 complete | Complete | Operational surface available |
-| **H — Enrichment** | T-016 | 🔴 Blocked on A, B, E | Lockfile parsing |
+| **H — Enrichment** | T-016 complete | 🟢 Complete | Lockfile parsing + opt-in enrichment |
 | **I — Verification** | T-017 | 🔴 Blocked on B, F | verify_fix |
 | **J — Safety** | T-018 | 🔴 Blocked on A, E, F | Redaction ✅ done |
 | **K — Tests** | T-019, T-020 | 🟡 Can start with each | Scaffolding + suites |
@@ -26,6 +26,20 @@
 ---
 
 ## ✅ Completed
+
+### T-016 - Dependency enrichment (lockfile-only + opt-in OSV/GHSA) [COMPLETED 2026-05-28]
+- Added `repo_audit_scan/dependency_enrichment.py` with lockfile parsers for `requirements.txt`, `package-lock.json`, and `composer.lock`.
+- Added lockfile-only dependency findings using existing dependency rules (`general-001`, `general-002`) with evidence provenance labels.
+- Added opt-in network enrichment path (OSV query) behind explicit call flag and `REPO_AUDIT_DEP_ENRICHMENT` environment gate.
+- Added fail-open behavior for enrichment failures; scans continue and keep lockfile-only findings.
+- Wired dependency scanning into CLI/MCP scan flow:
+  - CLI: `--enrich-dependencies`, `--fail-closed-enrichment`
+  - MCP: `scan_repository(..., enrich_dependencies, fail_open_on_enrichment_error)`
+- Added tests:
+  - `repo_audit_scan/tests/test_dependency_enrichment.py`
+  - CLI enrichment behavior test in `repo_audit_scan/tests/test_cli.py`
+  - MCP enrichment behavior test in `repo_audit_scan/tests/test_mcp_server.py`
+- Verification: targeted suite passed (`12 passed`).
 
 ### T-015 - Operational MCP support and diagnostics [COMPLETED 2026-05-27]
 - Added operational handlers in `repo_audit_scan/mcp_server.py`: `server.get_info`, `server.get_health`, `server.get_status`, `diagnostics.validate_config`, `diagnostics.run_self_check`, and `reports.list_reports`.
@@ -188,7 +202,7 @@
 
 ## 📋 Pending (in critical-path order)
 
-T-016 (Enrichment) → T-017 (Verify parity hardening) → T-018 (Safety hardening) → T-020 (cross-cut tests) → T-021 (Docs)
+T-017 (Verify parity hardening) → T-018 (Safety hardening) → T-020 (cross-cut tests) → T-021 (Docs)
 
 ---
 

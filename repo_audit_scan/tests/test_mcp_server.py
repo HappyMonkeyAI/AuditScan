@@ -116,3 +116,20 @@ def test_operational_handlers_return_expected_shapes(tmp_path):
     listed = server.list_reports(output_root=str(tmp_path / "reports"))
     assert listed["count"] == 0
     assert listed["reports"] == []
+
+
+def test_scan_repository_with_dependency_enrichment_flag_is_fail_open(tmp_path, monkeypatch):
+    """MCP scan should still succeed when enrichment is enabled and network is unavailable."""
+    server = MCPServer()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "requirements.txt").write_text("requests==2.20.0\n", encoding="utf-8")
+    monkeypatch.setenv("REPO_AUDIT_DEP_ENRICHMENT", "true")
+
+    result = server.scan_repository(
+        path=str(repo),
+        write_reports=False,
+        enrich_dependencies=True,
+        fail_open_on_enrichment_error=True,
+    )
+    assert result["findings"] >= 1

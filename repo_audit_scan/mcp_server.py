@@ -99,13 +99,20 @@ class MCPServer:
         write_reports: bool = True,
         mirror_to_target_repo: bool = False,
         output_root: str = "scan-reports",
+        enrich_dependencies: bool = False,
+        fail_open_on_enrichment_error: bool = True,
     ) -> Dict[str, Any]:
         """Scan a repository and optionally write report artifacts."""
         repo_path = Path(path).resolve()
         if not repo_path.exists():
             raise FileNotFoundError(f"Repository path does not exist: {repo_path}")
         registry = _load_rules(rules_path)
-        report = _scan_repository(repo_path, registry)
+        report = _scan_repository(
+            repo_path,
+            registry,
+            enrich_dependencies=enrich_dependencies,
+            fail_open_on_enrichment_error=fail_open_on_enrichment_error,
+        )
         # Keep report id deterministic for this command call path.
         report.report_id = _new_report_id()
 
