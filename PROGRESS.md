@@ -1,8 +1,8 @@
 # AuditScan MVP — Progress Tracker
 
-**Last synced:** 2026-05-27 T-012 COMPLETE (Triage Markdown and scan review writers)
+**Last synced:** 2026-05-27 T-013 COMPLETE (CLI scan/rules/triage/verify)
 **Total tasks:** 21 MVP + 5 Roadmap
-**Completed:** 8 | **In Progress:** 0 | **Pending:** 13
+**Completed:** 9 | **In Progress:** 0 | **Pending:** 12
 
 ---
 
@@ -15,7 +15,7 @@
 | **C — Scoring** | T-005 ✅ | 🟢 Complete | Ready for E |
 | **D — Adapters** | T-006 ✅, T-007..T-010 | 🟢 Core complete | T-006 base framework done; T-007-T-010 ready |
 | **E — Reporting** | T-011 complete, T-012 complete | Complete | Ready for CLI/MCP entrypoints |
-| **F — Entrypoints** | T-013, T-014 | 🟡 Can start after E | CLI/MCP, depends on E |
+| **F — Entrypoints** | T-013 complete, T-014 | In progress | MCP remains |
 | **G — Operational** | T-015 | 🔴 Blocked on F, D | Diagnostics |
 | **H — Enrichment** | T-016 | 🔴 Blocked on A, B, E | Lockfile parsing |
 | **I — Verification** | T-017 | 🔴 Blocked on B, F | verify_fix |
@@ -26,6 +26,14 @@
 ---
 
 ## ✅ Completed
+
+### T-013 - CLI entrypoints for scan, rules, triage, and verify [COMPLETED 2026-05-27]
+- Replaced CLI stubs with functional commands in `repo_audit_scan/cli.py`.
+- Added `scan` orchestration over inventory, adapters, rules, scoring, and report writing.
+- Added `rules` listing in text/JSON formats and `triage` generation from report JSON into `triage.md` and `review.md`.
+- Added `verify` to re-run the finding rule on evidence files and return `resolved` plus remaining locations.
+- Added robust report JSON normalization so triage/verify accept enriched writer output.
+- Verification: `uv run --extra dev python -m pytest -q` -> 90 passed.
 
 ### T-012 - Triage Markdown and scan review writers [COMPLETED 2026-05-27]
 - Added `repo_audit_scan/triage.py` with ticket-ready triage Markdown, scan-review journal Markdown, and paired artifact writing.
@@ -166,7 +174,7 @@
 
 ## 📋 Pending (in critical-path order)
 
-T-013/T-014 (CLI/MCP) → T-015 (Ops) → T-021 (Docs)
+T-014 (MCP) → T-015 (Ops) → T-021 (Docs)
 
 ---
 
