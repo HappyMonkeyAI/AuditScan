@@ -123,8 +123,8 @@ Tracks:
 **Track:** E | **Depends on:** T-003, T-005 | **Status:** COMPLETE
 
 ### T-012 — Triage Markdown writer (ticket-ready output)
-- [ ] Status
-**Track:** E | **Depends on:** T-005, T-011 | **Status:** 🔴 Pending
+- [x] Status
+**Track:** E | **Depends on:** T-005, T-011 | **Status:** COMPLETE
 
 ### T-013 — CLI (scan / rules / triage / verify), output formats, default mirroring
 - [ ] Status

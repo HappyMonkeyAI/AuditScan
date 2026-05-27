@@ -22,6 +22,7 @@ from repo_audit_scan.inventory import FilesystemWalker, RepositoryInventory, Fil
 from repo_audit_scan.git_utils import extract_git_metadata, GitMetadata
 from repo_audit_scan.rules import Rule, RuleRegistry, DuplicationHandler, ManualConfirmation
 from repo_audit_scan.reporting import JSONReportWriter, MarkdownReportWriter, ReportArtifactWriter
+from repo_audit_scan.triage import TriageMarkdownWriter, ScanReviewMarkdownWriter, TriageArtifactWriter
 
 __all__ = [
     "Finding",
@@ -49,4 +50,7 @@ __all__ = [
     "JSONReportWriter",
     "MarkdownReportWriter",
     "ReportArtifactWriter",
+    "TriageMarkdownWriter",
+    "ScanReviewMarkdownWriter",
+    "TriageArtifactWriter",
 ]
