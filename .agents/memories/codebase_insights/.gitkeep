@@ -1,0 +1,7 @@
+# Codebase Insights
+
+High-level summaries of complex modules, hidden logic, and the "why" behind
+counter-intuitive code. *(Semantic memory.)*
+
+One markdown file per module. Use the template at
+`.agents/memories/templates/codebase_insight_template.md`.

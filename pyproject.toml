@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "repo-audit-scan"
+version = "0.1.0"
+description = "Security-focused code audit scanner with adapters for PHP/WP, Python, JS/TS, CI/CD"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "AuditScan Team", email = "stephen.z.phillips@sparktsl.com"}
+]
+
+dependencies = [
+    "pydantic>=2.0.0",
+    "pyyaml>=6.0",
+    "pathspec>=0.11.0",
+    "gitpython>=3.1.0",
+]
+
+[project.optional-dependencies]
+mcp = [
+    "fastmcp>=0.1.0",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "mypy>=1.0.0",
+    "ruff>=0.1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/sparktsl/repo-audit-scan"
+Repository = "https://github.com/sparktsl/repo-audit-scan.git"
+
+[tool.setuptools]
+packages = ["repo_audit_scan"]
+
+[tool.setuptools.package-data]
+repo_audit_scan = ["py.typed"]
+
+[project.scripts]
+repo-audit-scan = "repo_audit_scan.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["repo_audit_scan/tests"]
+python_files = "test_*.py"
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+
+[tool.black]
+line-length = 100
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "W"]

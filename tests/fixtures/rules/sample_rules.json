@@ -1,0 +1,891 @@
+{
+  "rules": [
+    {
+      "rule_id": "py-001",
+      "category": "secrets",
+      "title": "Hardcoded API key in Python",
+      "description": "Detects hardcoded API keys, tokens, and credentials in Python source files",
+      "severity": "critical",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "api_key\\s*=\\s*['\"]sk-[a-zA-Z0-9]{20,}['\"]"
+        }
+      ],
+      "remediation_guidance": "Use environment variables or a secrets management system instead"
+    },
+    {
+      "rule_id": "py-002",
+      "category": "injection",
+      "title": "SQL injection vulnerability",
+      "description": "Detects potential SQL injection due to unsanitized user input in queries",
+      "severity": "critical",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "execute\\(.*[+%].*\\)"
+        },
+        {
+          "type": "regex",
+          "pattern": "cursor\\.execute\\(f['\"]"
+        }
+      ],
+      "remediation_guidance": "Use parameterized queries or ORM"
+    },
+    {
+      "rule_id": "py-003",
+      "category": "authentication",
+      "title": "Weak password policy",
+      "description": "Detects weak password validation or lack of complexity requirements",
+      "severity": "high",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "len\\(password\\)\\s*[<>]=?\\s*[0-9]"
+        }
+      ],
+      "remediation_guidance": "Enforce strong password policies with length, complexity, and character requirements"
+    },
+    {
+      "rule_id": "py-004",
+      "category": "data-validation",
+      "title": "Missing input validation",
+      "description": "Detects functions that accept user input without proper validation",
+      "severity": "medium",
+      "checks": []
+    },
+    {
+      "rule_id": "php-001",
+      "category": "secrets",
+      "title": "Database credentials in code",
+      "description": "Detects hardcoded database passwords in PHP files",
+      "severity": "critical",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "\\$password\\s*=\\s*['\"][^'\"]+['\"]"
+        }
+      ]
+    },
+    {
+      "rule_id": "php-002",
+      "category": "injection",
+      "title": "PHP SQL injection",
+      "description": "Detects SQL injection in PHP due to string concatenation",
+      "severity": "critical",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "\\$query\\s*=\\s*['\"]SELECT.*['\"]\\s*\\."
+        }
+      ]
+    },
+    {
+      "rule_id": "php-003",
+      "category": "xss",
+      "title": "Cross-site scripting (XSS)",
+      "description": "Detects echoing user input without HTML escaping",
+      "severity": "high",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "echo\\s+\\$_(GET|POST|REQUEST)"
+        }
+      ]
+    },
+    {
+      "rule_id": "js-001",
+      "category": "secrets",
+      "title": "API key in JavaScript",
+      "description": "Detects hardcoded API keys in JavaScript files",
+      "severity": "critical",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "const apiKey\\s*=\\s*['\"][^'\"]{20,}['\"]"
+        }
+      ]
+    },
+    {
+      "rule_id": "js-002",
+      "category": "injection",
+      "title": "DOM-based XSS",
+      "description": "Detects unsafe DOM manipulation that could lead to XSS",
+      "severity": "high",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "\\.innerHTML\\s*="
+        },
+        {
+          "type": "regex",
+          "pattern": "\\.html\\("
+        }
+      ]
+    },
+    {
+      "rule_id": "js-003",
+      "category": "data-validation",
+      "title": "Missing JSON.parse validation",
+      "description": "Detects JSON.parse without try-catch error handling",
+      "severity": "medium",
+      "checks": []
+    },
+    {
+      "rule_id": "java-001",
+      "category": "secrets",
+      "title": "JDBC connection string with credentials",
+      "description": "Detects hardcoded database connection strings with credentials",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "java-002",
+      "category": "injection",
+      "title": "Java SQL injection",
+      "description": "Detects SQL injection in Java code",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "java-003",
+      "category": "cryptography",
+      "title": "Weak cryptography",
+      "description": "Detects use of weak cryptographic algorithms",
+      "severity": "high",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "MD5|SHA1|DES"
+        }
+      ]
+    },
+    {
+      "rule_id": "csharp-001",
+      "category": "secrets",
+      "title": ".NET connection string with credentials",
+      "description": "Detects hardcoded SQL Server connection strings",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "csharp-002",
+      "category": "authentication",
+      "title": "Hardcoded credentials in .NET",
+      "description": "Detects hardcoded usernames and passwords",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "docker-001",
+      "category": "secrets",
+      "title": "Secrets in Dockerfile",
+      "description": "Detects credentials passed as ENV or RUN variables",
+      "severity": "critical",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "ENV.*PASSWORD|SECRET|KEY"
+        }
+      ]
+    },
+    {
+      "rule_id": "docker-002",
+      "category": "container-security",
+      "title": "Running as root in Docker",
+      "description": "Detects containers without explicit non-root USER directive",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "general-001",
+      "category": "dependency",
+      "title": "Known vulnerable dependency",
+      "description": "Detects usage of packages with known security vulnerabilities",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "general-002",
+      "category": "dependency",
+      "title": "Outdated dependency",
+      "description": "Detects dependencies that are significantly out of date",
+      "severity": "medium",
+      "checks": []
+    },
+    {
+      "rule_id": "general-003",
+      "category": "logging",
+      "title": "Sensitive data in logs",
+      "description": "Detects logging of passwords, tokens, or PII",
+      "severity": "medium",
+      "checks": []
+    },
+    {
+      "rule_id": "aws-001",
+      "category": "secrets",
+      "title": "AWS access key exposed",
+      "description": "Detects hardcoded AWS access keys (starts with AKIA)",
+      "severity": "critical",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "AKIA[0-9A-Z]{16}"
+        }
+      ]
+    },
+    {
+      "rule_id": "aws-002",
+      "category": "iam",
+      "title": "Overly permissive IAM policy",
+      "description": "Detects IAM policies with wildcard (*) on sensitive actions",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "aws-003",
+      "category": "storage",
+      "title": "S3 bucket publicly accessible",
+      "description": "Detects S3 buckets with public read/write ACLs",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "ssl-001",
+      "category": "cryptography",
+      "title": "TLS version too old",
+      "description": "Detects configuration allowing TLS 1.0 or 1.1",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "ssl-002",
+      "category": "cryptography",
+      "title": "Self-signed certificate",
+      "description": "Detects use of self-signed certificates in production",
+      "severity": "medium",
+      "checks": []
+    },
+    {
+      "rule_id": "auth-001",
+      "category": "authentication",
+      "title": "Session fixation vulnerability",
+      "description": "Detects lack of session regeneration after login",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "auth-002",
+      "category": "authentication",
+      "title": "Insecure password storage",
+      "description": "Detects plaintext or weak password hashing (MD5, SHA1)",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "auth-003",
+      "category": "authentication",
+      "title": "Missing CSRF protection",
+      "description": "Detects forms without CSRF tokens",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "error-001",
+      "category": "error-handling",
+      "title": "Detailed error messages exposed",
+      "description": "Detects stack traces or detailed errors in production responses",
+      "severity": "medium",
+      "checks": []
+    },
+    {
+      "rule_id": "error-002",
+      "category": "error-handling",
+      "title": "Unhandled exception",
+      "description": "Detects broad exception handling or bare except clauses",
+      "severity": "low",
+      "checks": []
+    },
+    {
+      "rule_id": "config-001",
+      "category": "configuration",
+      "title": "Debug mode enabled in production",
+      "description": "Detects debug=true or DEBUG=1 in production config",
+      "severity": "medium",
+      "checks": []
+    },
+    {
+      "rule_id": "api-001",
+      "category": "api-security",
+      "title": "Missing API authentication",
+      "description": "Detects API endpoints without authentication",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "api-002",
+      "category": "api-security",
+      "title": "Missing rate limiting",
+      "description": "Detects API endpoints without rate limiting",
+      "severity": "medium",
+      "checks": []
+    },
+    {
+      "rule_id": "api-003",
+      "category": "api-security",
+      "title": "Insecure direct object reference (IDOR)",
+      "description": "Detects endpoints exposing internal object IDs without access control",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "file-001",
+      "category": "file-operations",
+      "title": "Unsafe file upload",
+      "description": "Detects file upload without type/size validation",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "file-002",
+      "category": "file-operations",
+      "title": "Path traversal vulnerability",
+      "description": "Detects unsafe path construction from user input (../ etc)",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "file-003",
+      "category": "file-operations",
+      "title": "Insecure deserialization",
+      "description": "Detects unsafe deserialization of untrusted data",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "race-001",
+      "category": "concurrency",
+      "title": "Race condition",
+      "description": "Detects check-then-act patterns without synchronization",
+      "severity": "medium",
+      "checks": []
+    },
+    {
+      "rule_id": "memory-001",
+      "category": "memory-safety",
+      "title": "Buffer overflow",
+      "description": "Detects unsafe string operations that could overflow",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "memory-002",
+      "category": "memory-safety",
+      "title": "Use after free",
+      "description": "Detects potential use-after-free memory issues",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "privacy-001",
+      "category": "privacy",
+      "title": "PII logging",
+      "description": "Detects logging of personally identifiable information",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "privacy-002",
+      "category": "privacy",
+      "title": "Unencrypted PII storage",
+      "description": "Detects storage of PII without encryption",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "compliance-001",
+      "category": "compliance",
+      "title": "GDPR: Data retention",
+      "description": "Detects missing data retention or deletion policies",
+      "severity": "medium",
+      "checks": []
+    },
+    {
+      "rule_id": "compliance-002",
+      "category": "compliance",
+      "title": "HIPAA: Audit logging",
+      "description": "Detects missing audit logging for healthcare data",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "compliance-003",
+      "category": "compliance",
+      "title": "PCI-DSS: Secure transmission",
+      "description": "Detects unencrypted transmission of payment data",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "ci-001",
+      "category": "ci-cd",
+      "title": "Hardcoded credentials in CI/CD",
+      "description": "Detects secrets in GitHub Actions, GitLab CI, or Jenkins configs",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "ci-002",
+      "category": "ci-cd",
+      "title": "Unsigned container images",
+      "description": "Detects container images deployed without signature verification",
+      "severity": "medium",
+      "checks": []
+    },
+    {
+      "rule_id": "deploy-001",
+      "category": "deployment",
+      "title": "Unencrypted secrets in environment",
+      "description": "Detects plaintext secrets in environment variables",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "monitoring-001",
+      "category": "monitoring",
+      "title": "Missing security monitoring",
+      "description": "Detects absence of security event logging or alerting",
+      "severity": "medium",
+      "checks": []
+    },
+    {
+      "rule_id": "monitoring-002",
+      "category": "monitoring",
+      "title": "No intrusion detection",
+      "description": "Detects lack of IDS/IPS or anomaly detection",
+      "severity": "medium",
+      "checks": []
+    },
+    {
+      "rule_id": "backup-001",
+      "category": "disaster-recovery",
+      "title": "No backup strategy",
+      "description": "Detects missing backup or disaster recovery procedures",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "go-001",
+      "category": "secrets",
+      "title": "Hardcoded credentials in Go",
+      "description": "Detects hardcoded secrets in Go source files",
+      "severity": "critical",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "password\\s*:?=\\s*['\"][^'\"]{8,}['\"]"
+        }
+      ]
+    },
+    {
+      "rule_id": "go-002",
+      "category": "injection",
+      "title": "SQL injection in Go",
+      "description": "Detects potential SQL injection vulnerabilities in Go",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "rust-001",
+      "category": "secrets",
+      "title": "API keys in Rust config",
+      "description": "Detects hardcoded API keys in Rust configuration",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "rust-002",
+      "category": "memory-safety",
+      "title": "Unsafe block without documentation",
+      "description": "Detects unsafe blocks in Rust without proper safety justification",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "ruby-001",
+      "category": "secrets",
+      "title": "Credentials in Rails config",
+      "description": "Detects hardcoded secrets in Rails configuration files",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "ruby-002",
+      "category": "injection",
+      "title": "SQL injection in Rails",
+      "description": "Detects SQL injection vulnerabilities in Rails applications",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "kotlin-001",
+      "category": "secrets",
+      "title": "Hardcoded credentials in Kotlin",
+      "description": "Detects hardcoded credentials in Kotlin source files",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "swift-001",
+      "category": "secrets",
+      "title": "API credentials in Swift",
+      "description": "Detects hardcoded API credentials in Swift files",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "access-001",
+      "category": "access-control",
+      "title": "Insufficient privilege separation",
+      "description": "Detects functions that should have higher privilege requirements",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "access-002",
+      "category": "access-control",
+      "title": "Privilege escalation vulnerability",
+      "description": "Detects potential privilege escalation paths",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "access-003",
+      "category": "access-control",
+      "title": "Missing authorization check",
+      "description": "Detects endpoints or functions lacking proper authorization",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "validate-001",
+      "category": "data-validation",
+      "title": "Unvalidated user input",
+      "description": "Detects user input processed without validation",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "validate-002",
+      "category": "data-validation",
+      "title": "Type coercion vulnerability",
+      "description": "Detects unsafe type coercion of untrusted data",
+      "severity": "medium",
+      "checks": []
+    },
+    {
+      "rule_id": "validate-003",
+      "category": "data-validation",
+      "title": "Missing bounds checking",
+      "description": "Detects array/buffer access without bounds validation",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "validate-004",
+      "category": "data-validation",
+      "title": "Integer overflow vulnerability",
+      "description": "Detects potential integer overflow/underflow conditions",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "url-001",
+      "category": "injection",
+      "title": "URL injection vulnerability",
+      "description": "Detects user input used to construct URLs without validation",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "ldap-001",
+      "category": "injection",
+      "title": "LDAP injection vulnerability",
+      "description": "Detects LDAP queries built from unvalidated input",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "xml-001",
+      "category": "injection",
+      "title": "XML injection/XXE vulnerability",
+      "description": "Detects unsafe XML parsing of untrusted input",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "command-001",
+      "category": "injection",
+      "title": "OS command injection",
+      "description": "Detects execution of OS commands with unvalidated user input",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "env-001",
+      "category": "configuration",
+      "title": "Hardcoded environment-specific values",
+      "description": "Detects hardcoded values that should be environment-configurable",
+      "severity": "medium",
+      "checks": []
+    },
+    {
+      "rule_id": "env-002",
+      "category": "configuration",
+      "title": "Insecure default configuration",
+      "description": "Detects insecure default settings that should be changed",
+      "severity": "medium",
+      "checks": []
+    },
+    {
+      "rule_id": "logging-001",
+      "category": "logging",
+      "title": "Sensitive data in structured logs",
+      "description": "Detects logging of secrets in JSON or structured logs",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "logging-002",
+      "category": "logging",
+      "title": "Missing request/response logging",
+      "description": "Detects API endpoints without proper request logging",
+      "severity": "medium",
+      "checks": []
+    },
+    {
+      "rule_id": "logging-003",
+      "category": "logging",
+      "title": "Insufficient audit trail",
+      "description": "Detects missing audit logging for security-sensitive operations",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "crypto-001",
+      "category": "cryptography",
+      "title": "Hardcoded encryption key",
+      "description": "Detects encryption keys hardcoded in source files",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "crypto-002",
+      "category": "cryptography",
+      "title": "Non-random IV or salt",
+      "description": "Detects use of predictable initialization vectors or salts",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "crypto-003",
+      "category": "cryptography",
+      "title": "Incomplete cipher implementation",
+      "description": "Detects incomplete or homebrew cryptographic implementations",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "crypto-004",
+      "category": "cryptography",
+      "title": "Weak key derivation",
+      "description": "Detects weak key derivation functions (KDF)",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "hash-001",
+      "category": "cryptography",
+      "title": "Weak password hashing",
+      "description": "Detects use of weak hashing algorithms for passwords",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "random-001",
+      "category": "cryptography",
+      "title": "Non-cryptographic random number generation",
+      "description": "Detects use of weak RNGs for security-sensitive purposes",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "request-001",
+      "category": "api-security",
+      "title": "Missing request size limits",
+      "description": "Detects API endpoints without request size validation",
+      "severity": "medium",
+      "checks": []
+    },
+    {
+      "rule_id": "request-002",
+      "category": "api-security",
+      "title": "Missing timeout on external requests",
+      "description": "Detects external HTTP requests without timeouts",
+      "severity": "medium",
+      "checks": []
+    },
+    {
+      "rule_id": "request-003",
+      "category": "api-security",
+      "title": "Insecure HTTP method handling",
+      "description": "Detects improper validation of HTTP method restrictions",
+      "severity": "medium",
+      "checks": []
+    },
+    {
+      "rule_id": "header-001",
+      "category": "api-security",
+      "title": "Missing security headers",
+      "description": "Detects missing HTTP security headers (CSP, X-Frame-Options, etc)",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "header-002",
+      "category": "api-security",
+      "title": "Information disclosure in headers",
+      "description": "Detects server information leakage via HTTP headers",
+      "severity": "medium",
+      "checks": []
+    },
+    {
+      "rule_id": "cors-001",
+      "category": "api-security",
+      "title": "Permissive CORS policy",
+      "description": "Detects overly permissive CORS headers allowing any origin",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "cors-002",
+      "category": "api-security",
+      "title": "CORS with credentials allowed",
+      "description": "Detects CORS configuration allowing credentials with wildcard origins",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "session-001",
+      "category": "authentication",
+      "title": "Session token in URL",
+      "description": "Detects session tokens exposed in URL parameters",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "session-002",
+      "category": "authentication",
+      "title": "Missing secure flag on cookies",
+      "description": "Detects session cookies without secure flag",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "session-003",
+      "category": "authentication",
+      "title": "Missing HttpOnly flag on cookies",
+      "description": "Detects sensitive cookies without HttpOnly flag",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "session-004",
+      "category": "authentication",
+      "title": "Insufficient session timeout",
+      "description": "Detects sessions with excessively long timeouts",
+      "severity": "medium",
+      "checks": []
+    },
+    {
+      "rule_id": "password-001",
+      "category": "authentication",
+      "title": "Password reset without verification",
+      "description": "Detects password reset functions lacking proper verification",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "password-002",
+      "category": "authentication",
+      "title": "Predictable password reset tokens",
+      "description": "Detects use of predictable tokens in password reset flows",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "mfa-001",
+      "category": "authentication",
+      "title": "Missing MFA enforcement",
+      "description": "Detects sensitive operations without MFA requirement",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "mfa-002",
+      "category": "authentication",
+      "title": "Weak MFA implementation",
+      "description": "Detects MFA implementations lacking proper strength",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "xss-001",
+      "category": "xss",
+      "title": "Unsafe template rendering",
+      "description": "Detects template systems used without auto-escaping enabled",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "xss-002",
+      "category": "xss",
+      "title": "eval() with user input",
+      "description": "Detects use of eval() or similar with untrusted input",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "xss-003",
+      "category": "xss",
+      "title": "innerHTML with unsanitized input",
+      "description": "Detects DOM innerHTML usage with user-controlled data",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "template-001",
+      "category": "injection",
+      "title": "Template injection vulnerability",
+      "description": "Detects server-side template injection vulnerabilities",
+      "severity": "critical",
+      "checks": []
+    },
+    {
+      "rule_id": "proto-001",
+      "category": "injection",
+      "title": "Prototype pollution vulnerability",
+      "description": "Detects potential prototype pollution in JavaScript",
+      "severity": "high",
+      "checks": []
+    },
+    {
+      "rule_id": "reflect-001",
+      "category": "injection",
+      "title": "Deserialization of untrusted data",
+      "description": "Detects unsafe deserialization that could enable RCE",
+      "severity": "critical",
+      "checks": []
+    }
+  ]
+}

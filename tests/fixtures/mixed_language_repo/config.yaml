@@ -1,0 +1,9 @@
+app:
+  name: "Mixed App"
+  version: "1.0.0"
+  debug: true
+
+database:
+  host: "localhost"
+  port: 5432
+  name: "myapp"

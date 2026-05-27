@@ -1,0 +1,7 @@
+# Architectural Decisions
+
+Logs of major design choices, technology trade-offs, and future-proofing
+strategies. *(Semantic memory.)*
+
+One markdown file per decision, dated. Use the template at
+`.agents/memories/templates/architectural_decision_template.md`.
