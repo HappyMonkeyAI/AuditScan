@@ -193,3 +193,38 @@ def test_verify_dependency_finding_uses_snippet_fallback(tmp_path, capsys):
     resolved_payload = json.loads(capsys.readouterr().out)
     assert resolved == 0
     assert resolved_payload["resolved"] is True
+
+
+def test_verify_blocks_path_traversal_in_evidence(tmp_path, capsys):
+    """Verify must block evidence paths that escape repository root."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "safe.py").write_text("value = 1\n", encoding="utf-8")
+
+    metadata = ScanMetadata(
+        schema_version="1.0",
+        tool_version="0.1.0",
+        scan_timestamp="2026-05-28T00:00:00Z",
+        repository_path=str(repo),
+        scanned_files_count=1,
+        skipped_files_count=0,
+    )
+    finding = Finding(
+        finding_id="finding-path-001",
+        rule_id="py-001",
+        rule_title="Path traversal verify test",
+        category="secrets",
+        severity=Severity.HIGH,
+        confidence=Confidence.HIGH,
+        evidence=[Evidence(file_path="../outside.py", line_number=1, code_snippet='api_key = "sk-123"')],
+        remediation_guidance="n/a",
+    )
+    report = Report(report_id="path-report-001", metadata=metadata, findings=[finding], summary="path test")
+    report_path = tmp_path / "path-report.json"
+    report_path.write_text(JSONReportWriter().to_json(report), encoding="utf-8")
+
+    code = main(["verify", str(report_path), "finding-path-001"])
+    payload = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert payload["resolved"] is False
+    assert payload["remaining_locations"] == ["../outside.py:blocked_path"]

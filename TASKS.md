@@ -147,8 +147,8 @@ Tracks:
 **Track:** I | **Depends on:** T-003, T-014 | **Status:** COMPLETE
 
 ### T-018 — Safety: redaction, untrusted-content provenance, path containment
-- [ ] Status
-**Track:** J | **Depends on:** T-001, T-011, T-014 | **Status:** 🔴 Pending
+- [x] Status
+**Track:** J | **Depends on:** T-001, T-011, T-014 | **Status:** COMPLETE
 
 ### T-019 — Test scaffolding and fixture repositories
 - [ ] Status

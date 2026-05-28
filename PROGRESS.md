@@ -1,8 +1,8 @@
 # AuditScan MVP — Progress Tracker
 
-**Last synced:** 2026-05-28 T-017 COMPLETE (verify_fix parity hardening)
+**Last synced:** 2026-05-28 T-018 COMPLETE (safety path containment hardening)
 **Total tasks:** 21 MVP + 5 Roadmap
-**Completed:** 13 | **In Progress:** 0 | **Pending:** 8
+**Completed:** 14 | **In Progress:** 0 | **Pending:** 7
 
 ---
 
@@ -19,13 +19,22 @@
 | **G — Operational** | T-015 complete | Complete | Operational surface available |
 | **H — Enrichment** | T-016 complete | 🟢 Complete | Lockfile parsing + opt-in enrichment |
 | **I — Verification** | T-017 complete | 🟢 Complete | verify_fix parity hardened |
-| **J — Safety** | T-018 | 🔴 Blocked on A, E, F | Redaction ✅ done |
+| **J — Safety** | T-018 complete | 🟢 Complete | Redaction/provenance + path containment |
 | **K — Tests** | T-019, T-020 | 🟡 Can start with each | Scaffolding + suites |
 | **L — Docs** | T-021 | 🔴 Blocked on F, G | Last task |
 
 ---
 
 ## ✅ Completed
+
+### T-018 - Safety hardening (redaction/provenance/path containment) [COMPLETED 2026-05-28]
+- Added repository path containment enforcement in `repo_audit_scan/cli.py::_verify_finding` so evidence file paths cannot escape the repository root.
+- Blocked absolute and traversal paths during verify with explicit `:blocked_path` markers in `remaining_locations`.
+- Preserved existing redaction and untrusted-content provenance behavior in report writers and verified via regression tests.
+- Added safety tests:
+  - `test_verify_blocks_path_traversal_in_evidence` (CLI)
+  - `test_mcp_verify_blocks_path_traversal_in_evidence` (MCP)
+- Verification: targeted suite passed (`19 passed`).
 
 ### T-017 - verify_fix (CLI + MCP parity) [COMPLETED 2026-05-28]
 - Hardened verification fallback in `repo_audit_scan/cli.py::_verify_finding` for findings that are not adapter-backed (notably dependency lockfile findings).
@@ -212,7 +221,7 @@
 
 ## 📋 Pending (in critical-path order)
 
-T-018 (Safety hardening) → T-020 (cross-cut tests) → T-021 (Docs)
+T-020 (cross-cut tests) → T-021 (Docs)
 
 ---
 

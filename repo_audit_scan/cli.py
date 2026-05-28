@@ -229,12 +229,16 @@ def _verify_finding(
     adapters = AdapterRegistry()
     remaining: List[str] = []
     inspected = set()
+    repo_root = repo_path.resolve()
     for evidence in finding.get("evidence", []):
         file_path = evidence.get("file_path")
         if not file_path or file_path in inspected:
             continue
         inspected.add(file_path)
-        full_path = repo_path / file_path
+        full_path = _resolve_repo_relative_path(repo_root, file_path)
+        if full_path is None:
+            remaining.append(f"{file_path}:blocked_path")
+            continue
         if not full_path.exists():
             remaining.append(f"{file_path}:missing")
             continue
@@ -267,6 +271,18 @@ def _verify_finding(
         "resolved": len(remaining) == 0,
         "remaining_locations": sorted(set(remaining)),
     }
+
+
+def _resolve_repo_relative_path(repo_root: Path, relative_path: str) -> Optional[Path]:
+    candidate = Path(relative_path)
+    if candidate.is_absolute():
+        return None
+    resolved = (repo_root / candidate).resolve()
+    try:
+        resolved.relative_to(repo_root)
+    except ValueError:
+        return None
+    return resolved
 
 
 def _resolve_report_path(path_value: str) -> Path:
