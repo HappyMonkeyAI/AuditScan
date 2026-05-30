@@ -17,6 +17,7 @@ from repo_audit_scan.adapters_final import (
     JavaAdapter,
     CSharpAdapter,
     PhpAdapter,
+    CICDAdapter,
 )
 
 
@@ -41,6 +42,7 @@ class AdapterRegistry:
             JavaAdapter(),
             CSharpAdapter(),
             PhpAdapter(),
+            CICDAdapter(),
         ]
 
         for adapter in builtin_adapters:

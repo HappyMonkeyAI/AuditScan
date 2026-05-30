@@ -548,3 +548,79 @@ class CSharpAdapter(LanguageAdapter):
                 pass
 
         return results
+
+
+class CICDAdapter(LanguageAdapter):
+    """Adapter for CI/CD pipeline definitions (GitHub Actions and friends).
+
+    Unlike language adapters, CI/CD files are identified by path/filename, not
+    a source extension. Scans pipeline YAML/Groovy for the SPEC ci_cd detector
+    set: unsafe triggers (``pull_request_target``), broad token permissions,
+    unpinned actions, secret exposure, and untrusted-input shell interpolation.
+
+    Scope: this adapter only runs CI/CD-category rules (``ci-cd`` category or a
+    ``cicd``/``ci-`` rule id), so universal *language* rules are left to the
+    language adapters. CI-specific secret detection is provided by ``cicd-005``
+    (secrets echoed to logs) and ``cicd-006`` (hardcoded secret literals) rather
+    than by importing the language-tagged ``secrets`` rules, which would add
+    noise on pipeline YAML.
+
+    Known MVP limitations (regex heuristics; documented, not bugs):
+    - Detection covers ``.github/workflows/*.yml``, ``.gitlab-ci.yml``,
+      ``.circleci/config.yml``, ``azure-pipelines.yml``, ``.travis.yml`` and
+      ``Jenkinsfile``; composite/reusable ``action.yml`` files and
+      ``docker://`` action references are not yet analysed.
+    - Broad-permission detection (``cicd-002``) flags ``write-all`` only, not
+      granular over-scoping (``contents: write``, ``id-token: write``) which is
+      often legitimate.
+    - Script-injection detection (``cicd-004``) covers ``github.event.*`` and is
+      context-insensitive — it will also flag the recommended ``env:`` var
+      mitigation, so treat its findings as triage candidates.
+    """
+
+    #: Exact filenames that denote a CI/CD pipeline regardless of directory.
+    _CI_FILENAMES = {
+        ".gitlab-ci.yml", ".gitlab-ci.yaml", ".travis.yml", ".travis.yaml",
+        "azure-pipelines.yml", "azure-pipelines.yaml",
+        "bitbucket-pipelines.yml", "bitbucket-pipelines.yaml",
+    }
+
+    @property
+    def language(self) -> str:
+        return "ci-cd"
+
+    @property
+    def supported_frameworks(self) -> List[str]:
+        return [
+            "github-actions", "gitlab-ci", "circleci",
+            "jenkins", "azure-pipelines", "travis",
+        ]
+
+    def detect_language(self, file_path: str) -> bool:
+        path = file_path.replace("\\", "/")
+        lower = path.lower()
+        name = path.rsplit("/", 1)[-1]
+        # Jenkins pipeline files: "Jenkinsfile" or "Jenkinsfile.<env>".
+        if name == "Jenkinsfile" or name.startswith("Jenkinsfile."):
+            return True
+        if name in self._CI_FILENAMES:
+            return True
+        is_yaml = lower.endswith((".yml", ".yaml"))
+        if is_yaml and "/.github/workflows/" in f"/{lower}":
+            return True
+        if is_yaml and "/.circleci/" in f"/{lower}" and name.startswith("config."):
+            return True
+        return False
+
+    def supports_rule(self, rule: Rule) -> bool:
+        rule_id = (rule.rule_id or "").lower()
+        category = (rule.category or "").lower()
+        return (
+            category in ("ci-cd", "cicd", "ci/cd", "supply-chain")
+            or rule_id.startswith("cicd")
+            or rule_id.startswith("ci-")
+        )
+
+    def scan(self, context: ScanContext, rule: Rule) -> List[RuleResult]:
+        """Scan a CI/CD pipeline file using the rule's regex checks."""
+        return _scan_regex_checks(self, context, rule)

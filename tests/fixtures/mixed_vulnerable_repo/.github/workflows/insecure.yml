@@ -1,0 +1,16 @@
+name: deploy
+on:
+  pull_request_target:
+    types: [opened]
+
+permissions: write-all
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: AKIAIOSFODNN7EXAMPLE
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "title ${{ github.event.pull_request.title }}"
+      - run: echo "token=${{ secrets.DEPLOY_TOKEN }}"

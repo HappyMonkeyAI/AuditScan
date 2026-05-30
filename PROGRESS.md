@@ -1,8 +1,8 @@
 # AuditScan MVP — Progress Tracker
 
-**Last synced:** 2026-05-30 T-008 + T-009 COMPLETE (deepened Python & JS/TS adapters)
+**Last synced:** 2026-05-30 T-019 COMPLETE — **MVP COMPLETE (21/21)**
 **Total tasks:** 21 MVP + 5 Roadmap
-**Completed:** 19 | **In Progress:** 0 | **Pending:** 2
+**Completed:** 21 | **In Progress:** 0 | **Pending:** 0
 
 ---
 
@@ -20,12 +20,24 @@
 | **H — Enrichment** | T-016 complete | 🟢 Complete | Lockfile parsing + opt-in enrichment |
 | **I — Verification** | T-017 complete | 🟢 Complete | verify_fix parity hardened |
 | **J — Safety** | T-018 complete | 🟢 Complete | Redaction/provenance + path containment |
-| **K — Tests** | T-019 pending, T-020 complete | 🟡 Mostly complete | Cross-cut suites green; fixture-scaffolding task still open |
-| **L — Docs** | T-021 | 🔴 Blocked on F, G | Last task |
+| **K — Tests** | T-019 ✅, T-020 ✅ | 🟢 Complete | Cross-cut suites + repo-shaped fixtures + end-to-end scan integration test |
+| **L — Docs** | T-021 ✅ | 🟢 Complete | README refreshed; ARCHITECTURE.md + TROUBLESHOOTING.md added |
 
 ---
 
 ## ✅ Completed
+
+### T-019 - Fixture repositories + end-to-end scan integration [COMPLETED 2026-05-30]
+- Added repo-shaped fixtures: `tests/fixtures/generic_clean_repo/` (clean polyglot — Python, JS, pinned workflow) and `tests/fixtures/mixed_vulnerable_repo/` (vulnerabilities across all MVP adapters with correct paths: `.github/workflows/insecure.yml`, `wp-content/plugins/demo/plugin.php`, `app.py`, `server.js`).
+- Added `repo_audit_scan/tests/test_scan_integration.py` (4 tests) driving the real `_scan_repository` pipeline: clean repo → 0 findings (SPEC §16 #1); vulnerable repo → 14 findings across php/python/js/ci-cd with positive IAN scores; **regression for path-based CI/CD detection end-to-end** (workflow under `.github/workflows/` detected without an explicit ScanContext — a gap the isolated adapter unit tests could not catch).
+- Added `tests/fixtures/README.md` documenting the fixture set and SPEC §16 scenario mapping.
+- Verification: clean=0, vulnerable=14 (categories: ci-cd, injection, access-control, api-security, configuration); 133 passed across the broader suite. (Additive test scaffolding only — no product logic changed; the end-to-end pipeline run is the verification, so dual Trident auditors were not spawned.)
+
+### T-021 - Documentation pass [COMPLETED 2026-05-30]
+- Refreshed `README.md`: all 6 adapters, 124 rules / 25 categories, accurate CLI commands + flags (incl. `--rules`, enrichment gating), 12 MCP tools, IAN scoring, mirroring defaults, safety model.
+- Added `ARCHITECTURE.md`: pipeline diagram, component table, adapter contract, data model, CLI-vs-MCP mirroring, safety model, known limitations.
+- Added `TROUBLESHOOTING.md`: install/venv, no-findings triage, CI/CD path matching, enrichment double-gating, verify/path-containment, MCP mirroring, report locations.
+- All doc claims cross-checked against code (CLI argparse, MCP tool names, rule/category counts, dependency parsers, IAN weights, 10MB cap, Java/C# seed rules).
 
 ### T-008 / T-009 - Deepened Python & JS/TS adapters [COMPLETED 2026-05-30]
 - Added 12 high-signal rules to `sample_rules.json` (→ 124) covering SPEC detector lists.
@@ -260,12 +272,18 @@
 
 ## 📋 Pending (in critical-path order)
 
-All MVP adapters implemented and deepened. Remaining:
+**MVP is complete (21/21).** All universal rule categories plus the PHP/WordPress,
+Python, JS/TS, and CI/CD adapters are implemented and tested; CLI + MCP surfaces,
+reporting, triage, verify, dependency enrichment, and safety hardening are in
+place; docs and fixtures are done.
 
-- T-019 (per-adapter fixture repositories) — substantially advanced: php_wordpress_ajax_no_capability, cicd_github_actions, python_app, js_app fixtures now exist; remaining is formalizing/expanding the fixture set
-- T-021 (Docs pass)
+### Dogfooding — LLM-Codex-Reference-Vault [2026-05-30]
+- Ran the scanner end-to-end against a real 26-script Python repo. Pipeline worked (34 scanned / 28 skipped, languages + pip detected, IAN scoring, report).
+- Result before fix: 1 finding, a **false positive** — `docker-001` (`ENV.*PASSWORD|SECRET|KEY`) matched `DEVTO_API_KEY = os.getenv(...)` (substring `KEY`). Repo has no real hardcoded secrets.
+- Fix: tightened `docker-001` to a Dockerfile `ENV/ARG <SECRET>=<literal>` assignment (excludes `${...}` and bare declarations). Added regression test `test_docker_secret_rule_does_not_flag_env_var_reads`. Re-scan → **0 findings**. (See L-003.)
 
-Tracked follow-ups (non-blocking, from adapter audits):
+Tracked follow-ups (non-blocking, from adapter audits + dogfooding):
+- **Default-deny `supports_rule`**: stack-tagged rules (e.g. `docker-*`) should not run on unrelated language files. (Root cause behind the docker-001 leak.)
 - Regex execution hardening: per-pattern timeout + avoid double in-memory copy in extract_evidence
 - Adapter rule-coverage breadth: granular CI perms, broader untrusted-context/injection sinks, composite/docker:// actions, os.popen/request. variants
 

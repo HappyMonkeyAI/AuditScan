@@ -80,6 +80,20 @@ MEDIUM confidence and document the limitation. Surfaced reviewing T-007's
 banned token in a comment — it will trip the very rule it claims to be clean
 of.
 
+### L-003 — Unanchored alternation rules + default-allow scoping cause false positives
+
+Surfaced dogfooding on a real repo (LLM-Codex-Reference-Vault): `docker-001`'s
+pattern `ENV.*PASSWORD|SECRET|KEY` parses (precedence) as
+`(ENV.*PASSWORD) | SECRET | KEY`, so it matched the substring `KEY` in
+`DEVTO_API_KEY = os.getenv(...)` — a *secure* env read. Two compounding causes:
+(1) unanchored alternation without grouping; always group alternations and
+anchor to a real assignment/usage form. (2) The rule is Docker-scoped but ran on
+a `.py` file because `LanguageAdapter.supports_rule` is default-allow (only
+excludes rules naming *another* language). Fix applied: anchor the pattern to a
+Dockerfile `ENV/ARG <SECRET_NAME>=<literal>` assignment (exclude `${...}` and
+bare declarations). Open follow-up: move `supports_rule` toward default-deny so
+stack-tagged rules only run on their stack's files.
+
 ### L-002 — The sandbox mount serves stale/truncated copies of edited files
 
 Files written via the Edit/Write tools land correctly in the real working

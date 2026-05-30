@@ -12,6 +12,7 @@ from repo_audit_scan.adapters_final import (
     JavaAdapter,
     CSharpAdapter,
     PhpAdapter,
+    CICDAdapter,
     ScanContext,
 )
 
@@ -22,5 +23,6 @@ __all__ = [
     'JavaAdapter',
     'CSharpAdapter',
     'PhpAdapter',
+    'CICDAdapter',
     'ScanContext',
 ]

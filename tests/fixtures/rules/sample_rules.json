@@ -180,12 +180,12 @@
       "rule_id": "docker-001",
       "category": "secrets",
       "title": "Secrets in Dockerfile",
-      "description": "Detects credentials passed as ENV or RUN variables",
+      "description": "Detects a hardcoded secret assigned to an ENV/ARG variable in a Dockerfile (excludes build-arg references and ${...} interpolation)",
       "severity": "critical",
       "checks": [
         {
           "type": "regex",
-          "pattern": "ENV.*PASSWORD|SECRET|KEY"
+          "pattern": "(?<![A-Za-z])(?:ENV|ARG)\\s+[A-Z_]*(?:PASSWORD|SECRET|KEY|TOKEN)[A-Z_]*\\s*[= ]\\s*(?!\\$)\\S"
         }
       ]
     },

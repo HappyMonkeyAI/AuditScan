@@ -14,6 +14,7 @@ from repo_audit_scan.adapters_final import (
     JavaAdapter,
     CSharpAdapter,
     PhpAdapter,
+    CICDAdapter,
     ScanContext,
 )
 from repo_audit_scan.adapter_registry import (
@@ -22,7 +23,7 @@ from repo_audit_scan.adapter_registry import (
     resolve_adapter,
     resolve_language,
 )
-from repo_audit_scan.rules import Rule
+from repo_audit_scan.rules import Rule, RuleRegistry
 from repo_audit_scan.models import Severity
 
 
@@ -448,6 +449,204 @@ class TestPhpAdapter:
         extensions = registry.supported_extensions()
         assert extensions.get(".php") == "php"
         assert extensions.get(".phtml") == "php"
+
+
+CICD_FIXTURE_DIR = (
+    Path(__file__).resolve().parents[2]
+    / "tests"
+    / "fixtures"
+    / "cicd_github_actions"
+)
+
+_RULES_FILE = (
+    Path(__file__).resolve().parents[2]
+    / "tests"
+    / "fixtures"
+    / "rules"
+    / "sample_rules.json"
+)
+
+
+class TestCICDAdapter:
+    """Tests for the CI/CD pipeline adapter (T-010)."""
+
+    def test_cicd_adapter_properties(self):
+        adapter = CICDAdapter()
+        assert adapter.language == "ci-cd"
+        assert "github-actions" in adapter.supported_frameworks
+
+    def test_cicd_detects_pipeline_files_by_path(self):
+        adapter = CICDAdapter()
+        assert adapter.detect_language(".github/workflows/build.yml") is True
+        assert adapter.detect_language("repo/.github/workflows/ci.yaml") is True
+        assert adapter.detect_language("Jenkinsfile") is True
+        assert adapter.detect_language("Jenkinsfile.prod") is True
+        assert adapter.detect_language(".gitlab-ci.yml") is True
+        assert adapter.detect_language(".circleci/config.yml") is True
+        assert adapter.detect_language("azure-pipelines.yml") is True
+
+    def test_cicd_ignores_non_pipeline_files(self):
+        adapter = CICDAdapter()
+        # A plain YAML config that is not a pipeline must not be claimed.
+        assert adapter.detect_language("config.yml") is False
+        assert adapter.detect_language("k8s/deployment.yaml") is False
+        assert adapter.detect_language("app.py") is False
+        assert adapter.detect_language("README.md") is False
+
+    def test_cicd_supports_only_cicd_rules(self):
+        adapter = CICDAdapter()
+        cicd_rule = Rule("cicd-001", "ci-cd", "t", "GitHub Actions trigger", Severity.HIGH)
+        existing_ci = Rule("ci-002", "ci-cd", "t", "Unsigned image", Severity.MEDIUM)
+        py_rule = Rule("py-001", "secrets", "t", "Python secret", Severity.HIGH)
+        assert adapter.supports_rule(cicd_rule) is True
+        assert adapter.supports_rule(existing_ci) is True
+        assert adapter.supports_rule(py_rule) is False
+
+    def test_registry_resolves_cicd_workflow(self, registry):
+        assert registry.resolve_language(".github/workflows/ci.yml") == "ci-cd"
+        adapter = registry.resolve_adapter("Jenkinsfile")
+        assert adapter is not None and adapter.language == "ci-cd"
+        assert registry.count_adapters() == 6
+        assert "ci-cd" in registry.supported_languages()
+
+    def _cicd_rules(self):
+        reg = RuleRegistry()
+        reg.load_from_file(str(_RULES_FILE))
+        return [r for r in reg.list_all() if r.rule_id.startswith("cicd-")]
+
+    def test_vulnerable_workflow_triggers_all_detectors(self):
+        """AC: insecure workflow yields findings for every cicd-* detector."""
+        adapter = CICDAdapter()
+        content = (CICD_FIXTURE_DIR / "vulnerable.yml").read_text()
+        context = ScanContext(
+            file_path=".github/workflows/vulnerable.yml",
+            file_content=content,
+            language="ci-cd",
+        )
+        fired = set()
+        for rule in self._cicd_rules():
+            for res in adapter.scan(context, rule):
+                fired.add(res.rule_id)
+        assert {
+            "cicd-001", "cicd-002", "cicd-003",
+            "cicd-004", "cicd-005", "cicd-006",
+        }.issubset(fired)
+
+    def test_hardcoded_secret_in_pipeline_flagged(self):
+        """cicd-006: a hardcoded key literal in a workflow is flagged, but a
+        ${{ secrets.* }} reference is not."""
+        adapter = CICDAdapter()
+        rule = next(r for r in self._cicd_rules() if r.rule_id == "cicd-006")
+        bad = ScanContext(
+            ".github/workflows/a.yml",
+            "    env:\n      AWS_ACCESS_KEY_ID: AKIAIOSFODNN7EXAMPLE\n",
+            "ci-cd",
+        )
+        good = ScanContext(
+            ".github/workflows/b.yml",
+            "    env:\n      TOKEN: ${{ secrets.DEPLOY_TOKEN }}\n",
+            "ci-cd",
+        )
+        assert len(adapter.scan(bad, rule)) == 1
+        assert adapter.scan(good, rule) == []
+
+    def test_safe_workflow_is_clean(self):
+        """A hardened workflow must not trigger any cicd-* detector."""
+        adapter = CICDAdapter()
+        content = (CICD_FIXTURE_DIR / "safe.yml").read_text()
+        context = ScanContext(
+            file_path=".github/workflows/safe.yml",
+            file_content=content,
+            language="ci-cd",
+        )
+        fired = [
+            res.rule_id
+            for rule in self._cicd_rules()
+            for res in adapter.scan(context, rule)
+        ]
+        assert fired == []
+
+    def test_unpinned_action_detector_distinguishes_sha(self):
+        """cicd-003 flags mutable refs but not a full 40-char commit SHA."""
+        adapter = CICDAdapter()
+        rule = next(r for r in self._cicd_rules() if r.rule_id == "cicd-003")
+        tag = ScanContext(".github/workflows/a.yml", "      - uses: actions/checkout@v4\n", "ci-cd")
+        sha = ScanContext(
+            ".github/workflows/b.yml",
+            "      - uses: actions/checkout@8f4b7f84864484a7bf31766abe9204da3cbe65b3\n",
+            "ci-cd",
+        )
+        assert len(adapter.scan(tag, rule)) == 1
+        assert adapter.scan(sha, rule) == []
+
+
+PY_FIXTURE_DIR = (
+    Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "python_app"
+)
+JS_FIXTURE_DIR = (
+    Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "js_app"
+)
+
+
+def _rules_with_ids(ids):
+    reg = RuleRegistry()
+    reg.load_from_file(str(_RULES_FILE))
+    wanted = set(ids)
+    return [r for r in reg.list_all() if r.rule_id in wanted]
+
+
+class TestPythonAdapterDepth:
+    """Deepened Python adapter rule coverage (T-008)."""
+
+    NEW_IDS = ["py-005", "py-006", "py-007", "py-008", "py-009", "py-010"]
+
+    def _fire(self, filename):
+        adapter = PythonAdapter()
+        content = (PY_FIXTURE_DIR / filename).read_text()
+        ctx = ScanContext(file_path=f"python_app/{filename}", file_content=content, language="python")
+        fired = set()
+        for rule in _rules_with_ids(self.NEW_IDS):
+            for res in adapter.scan(ctx, rule):
+                fired.add(res.rule_id)
+        return fired
+
+    def test_vulnerable_python_triggers_new_detectors(self):
+        assert set(self.NEW_IDS).issubset(self._fire("vulnerable.py"))
+
+    def test_safe_python_clean(self):
+        assert self._fire("safe.py") == set()
+
+    def test_python_rules_excluded_from_js_adapter(self):
+        py_rule = next(r for r in _rules_with_ids(["py-006"]))
+        assert JavaScriptAdapter().supports_rule(py_rule) is False
+        assert PythonAdapter().supports_rule(py_rule) is True
+
+
+class TestJsAdapterDepth:
+    """Deepened JavaScript/TypeScript adapter rule coverage (T-009)."""
+
+    NEW_IDS = ["js-004", "js-005", "js-006", "js-007", "js-008", "js-009"]
+
+    def _fire(self, filename):
+        adapter = JavaScriptAdapter()
+        content = (JS_FIXTURE_DIR / filename).read_text()
+        ctx = ScanContext(file_path=f"js_app/{filename}", file_content=content, language="javascript")
+        fired = set()
+        for rule in _rules_with_ids(self.NEW_IDS):
+            for res in adapter.scan(ctx, rule):
+                fired.add(res.rule_id)
+        return fired
+
+    def test_vulnerable_js_triggers_new_detectors(self):
+        assert set(self.NEW_IDS).issubset(self._fire("vulnerable.js"))
+
+    def test_safe_js_clean(self):
+        assert self._fire("safe.js") == set()
+
+    def test_js_rules_excluded_from_python_adapter(self):
+        js_rule = next(r for r in _rules_with_ids(["js-006"]))
+        assert PythonAdapter().supports_rule(js_rule) is False
+        assert JavaScriptAdapter().supports_rule(js_rule) is True
 
 
 class TestExtractEvidence:
