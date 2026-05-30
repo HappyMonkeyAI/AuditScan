@@ -103,8 +103,8 @@ Tracks:
 **Track:** D | **Depends on:** T-002, T-003 | **Status:** 🔴 Pending
 
 ### T-007 — PHP / WordPress adapter
-- [ ] Status
-**Track:** D | **Depends on:** T-006 | **Status:** 🔴 Pending
+- [x] Status
+**Track:** D | **Depends on:** T-006 | **Status:** COMPLETE (2026-05-30) — satisfies AC-001, AC-002
 
 ### T-008 — Python adapter
 - [ ] Status
@@ -155,8 +155,8 @@ Tracks:
 **Track:** K | **Depends on:** T-001 | **Status:** 🔴 Pending
 
 ### T-020 — Test suites (rules, scoring, reports, CLI, MCP, diagnostics, dep, safety)
-- [ ] Status
-**Track:** K | **Depends on:** each respective implementation | **Status:** 🔴 Pending
+- [x] Status
+**Track:** K | **Depends on:** each respective implementation | **Status:** COMPLETE
 
 ### T-021 — Documentation pass (README, AGENTS hygiene)
 - [ ] Status

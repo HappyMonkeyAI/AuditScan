@@ -1,8 +1,8 @@
 # AuditScan MVP — Progress Tracker
 
-**Last synced:** 2026-05-28 T-018 COMPLETE (safety path containment hardening)
+**Last synced:** 2026-05-30 T-007 COMPLETE (PHP/WordPress adapter)
 **Total tasks:** 21 MVP + 5 Roadmap
-**Completed:** 14 | **In Progress:** 0 | **Pending:** 7
+**Completed:** 16 | **In Progress:** 0 | **Pending:** 5
 
 ---
 
@@ -13,19 +13,42 @@
 | **A — Foundation** | T-001 ✅, T-002 ✅ | 🟢 Both complete | Ready for B, C, D |
 | **B — Rule engine** | T-003 ✅, T-004 ✅ | 🟢 Both complete | Ready for D |
 | **C — Scoring** | T-005 ✅ | 🟢 Complete | Ready for E |
-| **D — Adapters** | T-006 ✅, T-007..T-010 | 🟢 Core complete | T-006 base framework done; T-007-T-010 ready |
+| **D — Adapters** | T-006 ✅, T-007 ✅, T-008..T-010 | 🟡 PHP/WP done | T-006 base + T-007 PHP/WordPress complete; T-008/T-009 base exists (deepen); T-010 CI/CD pending |
 | **E — Reporting** | T-011 complete, T-012 complete | Complete | Ready for CLI/MCP entrypoints |
 | **F — Entrypoints** | T-013 complete, T-014 complete | Complete | Ready for operational surface |
 | **G — Operational** | T-015 complete | Complete | Operational surface available |
 | **H — Enrichment** | T-016 complete | 🟢 Complete | Lockfile parsing + opt-in enrichment |
 | **I — Verification** | T-017 complete | 🟢 Complete | verify_fix parity hardened |
 | **J — Safety** | T-018 complete | 🟢 Complete | Redaction/provenance + path containment |
-| **K — Tests** | T-019, T-020 | 🟡 Can start with each | Scaffolding + suites |
+| **K — Tests** | T-019 pending, T-020 complete | 🟡 Mostly complete | Cross-cut suites green; fixture-scaffolding task still open |
 | **L — Docs** | T-021 | 🔴 Blocked on F, G | Last task |
 
 ---
 
 ## ✅ Completed
+
+### T-007 - PHP/WordPress adapter [COMPLETED 2026-05-30]
+- Added `PhpAdapter` in `repo_audit_scan/adapters_final.py`: detects `.php/.phtml/.php3-5`; frameworks wordpress/laravel/symfony/drupal/codeigniter; `supports_rule` excludes other-language rules.
+- Added shared `_scan_regex_checks` helper (used by Php + refactor-safe for others) and a WordPress-aware `wp_ajax_missing_guard` check satisfying **AC-001** (AJAX handler lacking nonce/capability → access-control finding).
+- Hardened guard detection after Trident audit: strips comments and matches guards as call-expressions (`token(`) to avoid false negatives; emits at MEDIUM confidence; documented array/closure-callback limitation.
+- Added `'php'` marker to `PythonAdapter.supports_rule` for symmetric cross-adapter exclusion.
+- Registered in `AdapterRegistry` (builtins + `.php*` extensions) and re-exported from `adapters.py`.
+- Added 4 rules to `sample_rules.json` (106 total): `wp-ajax-001`, `php-004` (unserialize), `php-005` (eval), `php-006` (LFI/include). `php-002` covers **AC-002** (SQLi).
+- Added fixtures `tests/fixtures/php_wordpress_ajax_no_capability/{vulnerable,safe}-plugin.php` and 13 `TestPhpAdapter` tests.
+- Trident audit: both auditors APPROVE-WITH-CONDITIONS; conditions addressed (guard hardening) or logged as follow-ups (file-size cap, array/closure callbacks).
+- Verification: 25 standalone logic checks pass; 129 passed across the rest of the suite (real `pytest -q` → 113 = 102 baseline + 11 new). Note: in-sandbox pytest on edited files unreliable due to mount staleness (see L-002).
+
+### T-020 - Cross-cut test suites [COMPLETED 2026-05-28]
+- Executed full repository test suite across rules, scoring, reporting, CLI, MCP, enrichment, and safety flows.
+- Validation command:
+  - `.venv/bin/python -m pytest -q`
+- Result:
+  - `102 passed` (no failures)
+- Existing targeted coverage now includes:
+  - CLI verify + enrichment + path-containment unhappy paths
+  - MCP verify parity + operational handlers + scan defaults
+  - Reporting redaction/provenance and prompt-injection warning markers
+  - Dependency lockfile-only + fail-open enrichment behavior
 
 ### T-018 - Safety hardening (redaction/provenance/path containment) [COMPLETED 2026-05-28]
 - Added repository path containment enforcement in `repo_audit_scan/cli.py::_verify_finding` so evidence file paths cannot escape the repository root.
@@ -221,7 +244,10 @@
 
 ## 📋 Pending (in critical-path order)
 
-T-020 (cross-cut tests) → T-021 (Docs)
+- T-010 (CI/CD adapter) — last genuine MVP adapter gap
+- T-008 / T-009 (deepen Python & JS/TS adapters to MVP rule depth + dedicated tests; base adapters already exist)
+- T-019 (per-adapter fixture repositories)
+- T-021 (Docs)
 
 ---
 

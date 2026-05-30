@@ -886,6 +886,61 @@
       "description": "Detects unsafe deserialization that could enable RCE",
       "severity": "critical",
       "checks": []
+    },
+    {
+      "rule_id": "wp-ajax-001",
+      "category": "access-control",
+      "title": "WordPress AJAX handler missing nonce/capability check",
+      "description": "Detects WordPress (PHP) AJAX handlers registered via add_action('wp_ajax_*') whose callback lacks a nonce verification or capability check, allowing unauthorized actions",
+      "severity": "high",
+      "checks": [
+        {
+          "type": "wp_ajax_missing_guard"
+        }
+      ],
+      "remediation_guidance": "Verify a nonce with check_ajax_referer()/wp_verify_nonce() and authorize the caller with current_user_can() at the start of every wp_ajax handler"
+    },
+    {
+      "rule_id": "php-004",
+      "category": "deserialization",
+      "title": "PHP unsafe deserialization of user input",
+      "description": "Detects PHP unserialize() called on request data, which can lead to object injection and remote code execution",
+      "severity": "critical",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "unserialize\\s*\\(\\s*\\$_(GET|POST|REQUEST|COOKIE)"
+        }
+      ],
+      "remediation_guidance": "Avoid unserialize() on untrusted input; use json_decode() or pass allowed_classes=false"
+    },
+    {
+      "rule_id": "php-005",
+      "category": "injection",
+      "title": "PHP use of eval()",
+      "description": "Detects PHP eval() usage, which executes arbitrary code and is a common remote code execution sink",
+      "severity": "critical",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "\\beval\\s*\\("
+        }
+      ],
+      "remediation_guidance": "Remove eval(); replace with explicit, safe logic and never execute dynamically built code"
+    },
+    {
+      "rule_id": "php-006",
+      "category": "file-operations",
+      "title": "PHP file inclusion from user input (LFI/path traversal)",
+      "description": "Detects PHP include/require statements built from request superglobals, enabling local file inclusion and path traversal",
+      "severity": "high",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "(include|require)(_once)?\\s*\\(?\\s*\\$_(GET|POST|REQUEST|COOKIE)"
+        }
+      ],
+      "remediation_guidance": "Never include paths derived from user input; use an allowlist of known files"
     }
   ]
 }

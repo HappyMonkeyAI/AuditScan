@@ -1,6 +1,10 @@
 """
 Tests for language adapters, registry, and loader.
+
+Covers Python, JavaScript, Java, C#, and PHP/WordPress adapters.
 """
+
+from pathlib import Path
 
 import pytest
 from repo_audit_scan.adapters_final import (
@@ -9,6 +13,7 @@ from repo_audit_scan.adapters_final import (
     JavaScriptAdapter,
     JavaAdapter,
     CSharpAdapter,
+    PhpAdapter,
     ScanContext,
 )
 from repo_audit_scan.adapter_registry import (
@@ -247,6 +252,202 @@ class TestAdapterScan:
 
         results = adapter.scan(context, rule)
         assert len(results) == 0  # Should handle gracefully
+
+
+PHP_FIXTURE_DIR = (
+    Path(__file__).resolve().parents[2]
+    / "tests"
+    / "fixtures"
+    / "php_wordpress_ajax_no_capability"
+)
+
+
+@pytest.fixture
+def wp_ajax_rule():
+    """WordPress AJAX missing-guard rule (SPEC AC-001)."""
+    return Rule(
+        rule_id="wp-ajax-001",
+        category="access-control",
+        title="WordPress AJAX handler missing nonce/capability check",
+        description="WordPress PHP AJAX handler without nonce or capability check",
+        severity=Severity.HIGH,
+        checks=[{"type": "wp_ajax_missing_guard"}],
+        remediation_guidance="Add check_ajax_referer() and current_user_can()",
+    )
+
+
+@pytest.fixture
+def php_sqli_rule():
+    """PHP SQL injection rule (SPEC AC-002)."""
+    return Rule(
+        rule_id="php-002",
+        category="injection",
+        title="PHP SQL injection",
+        description="Detects SQL injection in PHP due to string concatenation",
+        severity=Severity.CRITICAL,
+        checks=[{
+            "type": "regex",
+            "pattern": r"\$query\s*=\s*['\"]SELECT.*['\"]\s*\.",
+        }],
+        remediation_guidance="Use prepared statements / $wpdb->prepare()",
+    )
+
+
+class TestPhpAdapter:
+    """Tests for the PHP/WordPress adapter (T-007)."""
+
+    def test_php_adapter_properties(self):
+        adapter = PhpAdapter()
+        assert adapter.language == "php"
+        assert "wordpress" in adapter.supported_frameworks
+        assert "laravel" in adapter.supported_frameworks
+
+    def test_php_adapter_detects_php_files(self):
+        adapter = PhpAdapter()
+        assert adapter.detect_language("plugin.php") is True
+        assert adapter.detect_language("template.phtml") is True
+        assert adapter.detect_language("legacy.php5") is True
+        assert adapter.detect_language("app.py") is False
+        assert adapter.detect_language("index.js") is False
+
+    def test_php_adapter_supports_php_rules(self):
+        adapter = PhpAdapter()
+        rule = Rule(
+            rule_id="php-002",
+            category="injection",
+            title="PHP SQL injection",
+            description="Detects SQL injection in PHP code",
+            severity=Severity.CRITICAL,
+        )
+        assert adapter.supports_rule(rule) is True
+
+    def test_php_adapter_excludes_other_language_rules(self):
+        adapter = PhpAdapter()
+        rule = Rule(
+            rule_id="py-001",
+            category="secrets",
+            title="Python secret",
+            description="Hardcoded secret in Python with Django",
+            severity=Severity.HIGH,
+        )
+        assert adapter.supports_rule(rule) is False
+
+    def test_other_adapters_exclude_php_rules(self):
+        """A PHP-marked rule should not be claimed by non-PHP adapters."""
+        php_rule = Rule(
+            rule_id="php-005",
+            category="injection",
+            title="PHP eval",
+            description="Detects PHP eval() usage",
+            severity=Severity.CRITICAL,
+        )
+        assert PythonAdapter().supports_rule(php_rule) is False
+        assert JavaScriptAdapter().supports_rule(php_rule) is False
+        assert JavaAdapter().supports_rule(php_rule) is False
+        assert CSharpAdapter().supports_rule(php_rule) is False
+
+    def test_php_sqli_scan_finds_injection(self, php_sqli_rule):
+        """AC-002: PHP SQL string interpolation yields an injection finding."""
+        adapter = PhpAdapter()
+        context = ScanContext(
+            file_path="db.php",
+            file_content='<?php $query = "SELECT * FROM users WHERE id = " . $_GET["id"];',
+            language="php",
+        )
+        results = adapter.scan(context, php_sqli_rule)
+        assert len(results) == 1
+        assert results[0].rule_id == "php-002"
+        assert results[0].severity == Severity.CRITICAL
+        assert results[0].evidence[0].line_number == 1
+
+    def test_wp_ajax_missing_guard_flags_unguarded(self, wp_ajax_rule):
+        """AC-001: unguarded AJAX handler produces an access-control finding."""
+        adapter = PhpAdapter()
+        content = (PHP_FIXTURE_DIR / "vulnerable-plugin.php").read_text()
+        context = ScanContext(
+            file_path="vulnerable-plugin.php",
+            file_content=content,
+            language="php",
+        )
+        results = adapter.scan(context, wp_ajax_rule)
+        assert len(results) == 1
+        assert results[0].rule_id == "wp-ajax-001"
+        assert results[0].category == "access-control"
+        assert len(results[0].evidence) >= 1
+        assert results[0].evidence[0].line_number > 0
+
+    def test_wp_ajax_guard_present_no_finding(self, wp_ajax_rule):
+        """A handler guarded by nonce + capability check must not be flagged."""
+        adapter = PhpAdapter()
+        content = (PHP_FIXTURE_DIR / "safe-plugin.php").read_text()
+        context = ScanContext(
+            file_path="safe-plugin.php",
+            file_content=content,
+            language="php",
+        )
+        results = adapter.scan(context, wp_ajax_rule)
+        assert results == []
+
+    def test_wp_ajax_inline_capability_only_no_finding(self, wp_ajax_rule):
+        """A capability check alone satisfies the guard (lacks nonce OR capability)."""
+        adapter = PhpAdapter()
+        content = (
+            "<?php\n"
+            "add_action('wp_ajax_do_thing', 'do_thing');\n"
+            "function do_thing() {\n"
+            "    if (!current_user_can('manage_options')) { wp_die(); }\n"
+            "    echo 'ok';\n"
+            "}\n"
+        )
+        context = ScanContext(
+            file_path="cap.php", file_content=content, language="php"
+        )
+        assert adapter.scan(context, wp_ajax_rule) == []
+
+    def test_wp_ajax_guard_in_comment_still_flagged(self, wp_ajax_rule):
+        """A guard token that appears only in a comment must not mask the finding."""
+        adapter = PhpAdapter()
+        content = (
+            "<?php\n"
+            "add_action('wp_ajax_do_thing', 'do_thing');\n"
+            "function do_thing() {\n"
+            "    // TODO: add current_user_can('manage_options') check here\n"
+            "    echo $_POST['x'];\n"
+            "}\n"
+        )
+        context = ScanContext(
+            file_path="commented.php", file_content=content, language="php"
+        )
+        results = adapter.scan(context, wp_ajax_rule)
+        assert len(results) == 1
+
+    def test_wp_ajax_substring_identifier_not_a_guard(self, wp_ajax_rule):
+        """A non-guard identifier containing a guard token must not count as a guard."""
+        adapter = PhpAdapter()
+        content = (
+            "<?php\n"
+            "add_action('wp_ajax_do_thing', 'do_thing');\n"
+            "function do_thing() {\n"
+            "    current_user_can_view_things();\n"  # not a real guard
+            "    echo $_POST['x'];\n"
+            "}\n"
+        )
+        context = ScanContext(
+            file_path="substring.php", file_content=content, language="php"
+        )
+        results = adapter.scan(context, wp_ajax_rule)
+        assert len(results) == 1
+
+    def test_registry_resolves_php(self, registry):
+        assert registry.resolve_language("plugin.php") == "php"
+        adapter = registry.resolve_adapter("wp-content/plugins/x/plugin.php")
+        assert adapter is not None
+        assert adapter.language == "php"
+
+    def test_supported_extensions_includes_php(self, registry):
+        extensions = registry.supported_extensions()
+        assert extensions.get(".php") == "php"
+        assert extensions.get(".phtml") == "php"
 
 
 class TestExtractEvidence:

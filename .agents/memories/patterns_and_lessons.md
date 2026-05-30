@@ -33,14 +33,49 @@ operating rules. Plans and PRs that deviate from either must call out the
 deviation explicitly.
 
 **Source:** AI Accelerator Day 1 workflow.
-**Confirmed on:** N/A yet — bootstrapped from spec, not yet exercised.
+**Confirmed on:** 2026-05-30 (T-007).
+
+### P-002 — Adding a language adapter
+
+To add a stack adapter: subclass `LanguageAdapter` in
+`repo_audit_scan/adapters_final.py` (implement `language`,
+`supported_frameworks`, `detect_language`, `supports_rule`, `scan`); reuse the
+shared `_scan_regex_checks(self, ctx, rule)` helper for ordinary `regex`
+checks, and add a dedicated check-type branch in `scan()` only for richer,
+stateful detectors (e.g. PHP's `wp_ajax_missing_guard`). Wire it in three
+places: `AdapterRegistry._load_builtin_adapters`, `supported_extensions`, and
+the `adapters.py` re-export. Add matching rules to
+`tests/fixtures/rules/sample_rules.json` — descriptions should name the
+language so `supports_rule` cross-adapter exclusion stays clean (keep every
+adapter's language-marker list symmetric; when adding a language, add its
+marker to the *other* adapters too).
+
+**Confirmed on:** 2026-05-30 (T-007 PHP/WordPress).
 
 ---
 
 ## "Never Again" Lessons
 
-*(Empty — this project has not yet accumulated post-mortems. Add the
-first entry the first time a failed approach costs more than 15 minutes.)*
+### L-001 — Security heuristics: match call-expressions, not substrings
+
+A guard/sink heuristic must strip comments first and require the token to be a
+*call* (`token\s*\(`), never a bare substring. Bare substring matching lets a
+token in a `// comment`, a string, or an unrelated identifier
+(`current_user_can_view`) mask a real vulnerability — a false negative, the
+worst failure mode for a security scanner. Emit such heuristic findings at
+MEDIUM confidence and document the limitation. Surfaced reviewing T-007's
+`PhpAdapter._has_guard`.
+
+### L-002 — The sandbox mount serves stale/truncated copies of edited files
+
+Files written via the Edit/Write tools land correctly in the real working
+tree (the Read tool is authoritative) but the `mcp__workspace__bash` mount can
+serve a truncated or intermediate snapshot — causing phantom `SyntaxError`s
+and pytest collecting stale counts. Do **not** trust in-sandbox `pytest` on
+freshly edited files. Verify by reconstructing a clean copy under `/tmp`
+(copy the package, overwrite the edited files with authoritative content) and
+run there, or validate logic with a standalone import harness. Cost ~30 min on
+T-007 before the divergence was diagnosed.
 
 ---
 

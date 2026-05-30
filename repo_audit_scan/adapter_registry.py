@@ -16,6 +16,7 @@ from repo_audit_scan.adapters_final import (
     JavaScriptAdapter,
     JavaAdapter,
     CSharpAdapter,
+    PhpAdapter,
 )
 
 
@@ -39,6 +40,7 @@ class AdapterRegistry:
             JavaScriptAdapter(),
             JavaAdapter(),
             CSharpAdapter(),
+            PhpAdapter(),
         ]
 
         for adapter in builtin_adapters:
@@ -132,6 +134,10 @@ class AdapterRegistry:
         # C#
         for ext in ['.cs']:
             extensions[ext] = 'csharp'
+
+        # PHP
+        for ext in ['.php', '.phtml', '.php3', '.php4', '.php5']:
+            extensions[ext] = 'php'
 
         return extensions
 

@@ -11,6 +11,7 @@ from repo_audit_scan.adapters_final import (
     JavaScriptAdapter,
     JavaAdapter,
     CSharpAdapter,
+    PhpAdapter,
     ScanContext,
 )
 
@@ -20,5 +21,6 @@ __all__ = [
     'JavaScriptAdapter',
     'JavaAdapter',
     'CSharpAdapter',
+    'PhpAdapter',
     'ScanContext',
 ]
