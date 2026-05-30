@@ -107,16 +107,16 @@ Tracks:
 **Track:** D | **Depends on:** T-006 | **Status:** COMPLETE (2026-05-30) — satisfies AC-001, AC-002
 
 ### T-008 — Python adapter
-- [ ] Status
-**Track:** D | **Depends on:** T-006 | **Status:** 🔴 Pending
+- [x] Status
+**Track:** D | **Depends on:** T-006 | **Status:** COMPLETE (2026-05-30) — deepened: py-005..py-010 + fixtures/tests
 
 ### T-009 — JavaScript / TypeScript adapter
-- [ ] Status
-**Track:** D | **Depends on:** T-006 | **Status:** 🔴 Pending
+- [x] Status
+**Track:** D | **Depends on:** T-006 | **Status:** COMPLETE (2026-05-30) — deepened: js-004..js-009 + fixtures/tests
 
 ### T-010 — CI/CD adapter
-- [ ] Status
-**Track:** D | **Depends on:** T-006 | **Status:** 🔴 Pending
+- [x] Status
+**Track:** D | **Depends on:** T-006 | **Status:** COMPLETE (2026-05-30) — GitHub Actions + common CI; 6 detectors
 
 ### T-011 — JSON and Markdown report writers
 - [x] Status

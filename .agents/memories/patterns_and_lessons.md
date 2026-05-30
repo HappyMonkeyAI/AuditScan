@@ -50,7 +50,17 @@ language so `supports_rule` cross-adapter exclusion stays clean (keep every
 adapter's language-marker list symmetric; when adding a language, add its
 marker to the *other* adapters too).
 
-**Confirmed on:** 2026-05-30 (T-007 PHP/WordPress).
+Adapters need not be extension-based: a `detect_language` may match on
+path/filename instead (T-010 `CICDAdapter` matches `.github/workflows/*.yml`,
+`Jenkinsfile`, `.gitlab-ci.yml`, etc.). `resolve_adapter` receives the full
+path and returns the first adapter whose `detect_language` matches; register
+path-based adapters so they only claim genuine matches (never bare `.yml`).
+For non-language adapters, scope `supports_rule` to the relevant rule
+categories (e.g. `ci-cd`) and add purpose-built rules for cross-cutting
+concerns (CI secret exposure via `cicd-005/006`) rather than importing noisy
+language-tagged rules from other categories.
+
+**Confirmed on:** 2026-05-30 (T-007 PHP/WordPress, T-010 CI/CD).
 
 ---
 
@@ -64,7 +74,11 @@ token in a `// comment`, a string, or an unrelated identifier
 (`current_user_can_view`) mask a real vulnerability — a false negative, the
 worst failure mode for a security scanner. Emit such heuristic findings at
 MEDIUM confidence and document the limitation. Surfaced reviewing T-007's
-`PhpAdapter._has_guard`.
+`PhpAdapter._has_guard`. Corollary (T-009): a bare-substring rule like
+`dangerouslySetInnerHTML` matches prose, so (a) write detectors as usage forms
+(`dangerouslySetInnerHTML\s*=`) and (b) never let a "safe" fixture mention a
+banned token in a comment — it will trip the very rule it claims to be clean
+of.
 
 ### L-002 — The sandbox mount serves stale/truncated copies of edited files
 

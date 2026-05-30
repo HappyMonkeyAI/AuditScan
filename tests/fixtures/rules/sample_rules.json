@@ -941,6 +941,270 @@
         }
       ],
       "remediation_guidance": "Never include paths derived from user input; use an allowlist of known files"
+    },
+    {
+      "rule_id": "cicd-001",
+      "category": "ci-cd",
+      "title": "GitHub Actions unsafe pull_request_target trigger",
+      "description": "Detects the CI/CD pull_request_target trigger, which runs with repository write token and secrets in the context of an untrusted fork PR",
+      "severity": "high",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "pull_request_target"
+        }
+      ],
+      "remediation_guidance": "Avoid pull_request_target for untrusted PRs; if required, never check out or execute PR head code and scope permissions to read-only"
+    },
+    {
+      "rule_id": "cicd-002",
+      "category": "ci-cd",
+      "title": "GitHub Actions overly broad token permissions",
+      "description": "Detects CI/CD workflows granting write-all token permissions instead of least privilege",
+      "severity": "high",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "permissions:\\s*write-all"
+        }
+      ],
+      "remediation_guidance": "Set least-privilege permissions (default read-only) and grant only the specific scopes a job needs"
+    },
+    {
+      "rule_id": "cicd-003",
+      "category": "ci-cd",
+      "title": "Unpinned GitHub Actions dependency",
+      "description": "Detects CI/CD actions referenced by mutable tag or branch instead of a pinned full-length commit SHA, enabling supply-chain tampering",
+      "severity": "medium",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "uses:\\s*[A-Za-z0-9._\\-/]+@(?![0-9a-fA-F]{40}(?:\\s|$|#|\\r))[^\\s#]+"
+        }
+      ],
+      "remediation_guidance": "Pin third-party actions to a full 40-character commit SHA, e.g. uses: owner/repo@<sha>"
+    },
+    {
+      "rule_id": "cicd-004",
+      "category": "ci-cd",
+      "title": "GitHub Actions script injection via untrusted input",
+      "description": "Detects CI/CD shell interpolation of attacker-controllable github.event data directly into a run step, enabling command injection",
+      "severity": "critical",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "\\$\\{\\{\\s*github\\.event\\.[A-Za-z0-9_.]+\\s*\\}\\}"
+        }
+      ],
+      "remediation_guidance": "Never interpolate github.event.* into run scripts; pass via an env var and quote it, or use an action input"
+    },
+    {
+      "rule_id": "cicd-005",
+      "category": "ci-cd",
+      "title": "CI/CD secret written to logs",
+      "description": "Detects CI/CD steps echoing a GitHub Actions secret to stdout, which can leak it into build logs",
+      "severity": "high",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "echo[^\\n]*\\$\\{\\{\\s*secrets\\."
+        }
+      ],
+      "remediation_guidance": "Never echo secrets; rely on masked env injection and avoid printing secret values"
+    },
+    {
+      "rule_id": "cicd-006",
+      "category": "ci-cd",
+      "title": "Hardcoded secret in CI/CD pipeline",
+      "description": "Detects a hardcoded credential or key literal committed into a CI/CD pipeline file instead of being referenced from a secrets store",
+      "severity": "critical",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "AKIA[0-9A-Z]{16}"
+        },
+        {
+          "type": "regex",
+          "pattern": "(?i)(password|passwd|secret|token|api[_-]?key)\\s*[:=]\\s*[\\\"']?(?!\\$\\{\\{)[A-Za-z0-9+/=_\\-]{12,}"
+        }
+      ],
+      "remediation_guidance": "Never hardcode secrets in pipeline files; reference them from the CI secrets store (e.g. ${{ secrets.NAME }}) and rotate any exposed value"
+    },
+    {
+      "rule_id": "py-005",
+      "category": "deserialization",
+      "title": "Python unsafe deserialization",
+      "description": "Python: detects unsafe deserialization via pickle.loads or yaml.load without SafeLoader, enabling arbitrary code execution",
+      "severity": "critical",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "pickle\\.loads?\\s*\\("
+        },
+        {
+          "type": "regex",
+          "pattern": "yaml\\.load\\s*\\((?![^)]*Safe)"
+        }
+      ],
+      "remediation_guidance": "Avoid pickle on untrusted data; use yaml.safe_load() or json instead"
+    },
+    {
+      "rule_id": "py-006",
+      "category": "injection",
+      "title": "Python OS command injection",
+      "description": "Python: detects command execution via subprocess with shell=True or os.system, a command-injection sink",
+      "severity": "critical",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "subprocess\\.(?:call|run|Popen|check_output)\\([^)]*shell\\s*=\\s*True"
+        },
+        {
+          "type": "regex",
+          "pattern": "os\\.system\\s*\\("
+        }
+      ],
+      "remediation_guidance": "Pass argument lists without shell=True; never build shell strings from user input"
+    },
+    {
+      "rule_id": "py-007",
+      "category": "injection",
+      "title": "Python use of eval/exec",
+      "description": "Python: detects eval() or exec() which execute arbitrary code and are common RCE sinks",
+      "severity": "high",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "\\b(?:eval|exec)\\s*\\("
+        }
+      ],
+      "remediation_guidance": "Remove eval/exec; use explicit parsing (ast.literal_eval) or safe dispatch"
+    },
+    {
+      "rule_id": "py-008",
+      "category": "configuration",
+      "title": "Python debug mode enabled",
+      "description": "Python: detects Flask/Django debug mode enabled, which exposes the interactive debugger and stack traces in production",
+      "severity": "medium",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "(?:app\\.run\\([^)]*debug\\s*=\\s*True|DEBUG\\s*=\\s*True)"
+        }
+      ],
+      "remediation_guidance": "Disable debug in production; drive it from an environment variable defaulting to False"
+    },
+    {
+      "rule_id": "py-009",
+      "category": "api-security",
+      "title": "Python permissive CORS",
+      "description": "Python: detects FastAPI/Flask CORS configured to allow all origins, exposing authenticated APIs to any site",
+      "severity": "high",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "allow_origins\\s*=\\s*\\[\\s*[\"']\\*[\"']\\]"
+        }
+      ],
+      "remediation_guidance": "Restrict allow_origins to an explicit allowlist of trusted origins"
+    },
+    {
+      "rule_id": "py-010",
+      "category": "file-operations",
+      "title": "Python path traversal via request input",
+      "description": "Python: detects file open() built directly from request input, enabling path traversal / arbitrary file read",
+      "severity": "high",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "open\\s*\\(\\s*[^)\\n]*request\\.(?:args|form|values|GET|POST)"
+        }
+      ],
+      "remediation_guidance": "Validate and canonicalize paths against an allowlisted base directory before opening"
+    },
+    {
+      "rule_id": "js-004",
+      "category": "injection",
+      "title": "JavaScript OS command execution",
+      "description": "JavaScript/TypeScript: detects child_process.exec/execSync, a command-injection sink when fed untrusted input",
+      "severity": "critical",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "child_process\\.(?:exec|execSync)\\s*\\("
+        }
+      ],
+      "remediation_guidance": "Use execFile/spawn with an argument array and never interpolate user input into a shell string"
+    },
+    {
+      "rule_id": "js-005",
+      "category": "api-security",
+      "title": "JavaScript SSRF via user-controlled request",
+      "description": "JavaScript/TypeScript: detects axios/fetch called with request-derived input, enabling server-side request forgery",
+      "severity": "high",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "(?:axios\\.get|axios|fetch)\\s*\\(\\s*[^)]*req\\.(?:query|params|body)"
+        }
+      ],
+      "remediation_guidance": "Validate outbound URLs against an allowlist; reject internal/metadata hosts"
+    },
+    {
+      "rule_id": "js-006",
+      "category": "injection",
+      "title": "JavaScript use of eval",
+      "description": "JavaScript/TypeScript: detects eval(), which executes arbitrary code and is a common injection sink",
+      "severity": "high",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "\\beval\\s*\\("
+        }
+      ],
+      "remediation_guidance": "Remove eval; use JSON.parse or explicit logic instead"
+    },
+    {
+      "rule_id": "js-007",
+      "category": "injection",
+      "title": "JavaScript prototype pollution sink",
+      "description": "JavaScript/TypeScript: detects direct __proto__ assignment, a prototype-pollution sink that can corrupt object behavior",
+      "severity": "high",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "(?:\\[\\s*['\\\"]__proto__['\\\"]\\s*\\]|\\.__proto__\\s*=)"
+        }
+      ],
+      "remediation_guidance": "Avoid writing to __proto__; use Map or Object.create(null) and validate keys"
+    },
+    {
+      "rule_id": "js-008",
+      "category": "secrets",
+      "title": "JavaScript token stored in localStorage",
+      "description": "JavaScript/TypeScript: detects auth tokens/secrets written to localStorage, which is readable by any XSS payload",
+      "severity": "medium",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "localStorage\\.setItem\\(\\s*['\"][^'\"]*(?:token|jwt|secret|password|auth)"
+        }
+      ],
+      "remediation_guidance": "Store session tokens in HttpOnly, Secure cookies rather than localStorage"
+    },
+    {
+      "rule_id": "js-009",
+      "category": "xss",
+      "title": "React dangerouslySetInnerHTML",
+      "description": "JavaScript/TypeScript: detects React dangerouslySetInnerHTML, an XSS sink when fed unsanitized input",
+      "severity": "high",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "dangerouslySetInnerHTML\\s*="
+        }
+      ],
+      "remediation_guidance": "Avoid dangerouslySetInnerHTML; if unavoidable, sanitize with a vetted library (e.g. DOMPurify)"
     }
   ]
 }

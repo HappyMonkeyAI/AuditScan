@@ -1,8 +1,8 @@
 # AuditScan MVP — Progress Tracker
 
-**Last synced:** 2026-05-30 T-007 COMPLETE (PHP/WordPress adapter)
+**Last synced:** 2026-05-30 T-008 + T-009 COMPLETE (deepened Python & JS/TS adapters)
 **Total tasks:** 21 MVP + 5 Roadmap
-**Completed:** 16 | **In Progress:** 0 | **Pending:** 5
+**Completed:** 19 | **In Progress:** 0 | **Pending:** 2
 
 ---
 
@@ -13,7 +13,7 @@
 | **A — Foundation** | T-001 ✅, T-002 ✅ | 🟢 Both complete | Ready for B, C, D |
 | **B — Rule engine** | T-003 ✅, T-004 ✅ | 🟢 Both complete | Ready for D |
 | **C — Scoring** | T-005 ✅ | 🟢 Complete | Ready for E |
-| **D — Adapters** | T-006 ✅, T-007 ✅, T-008..T-010 | 🟡 PHP/WP done | T-006 base + T-007 PHP/WordPress complete; T-008/T-009 base exists (deepen); T-010 CI/CD pending |
+| **D — Adapters** | T-006 ✅, T-007 ✅, T-008 ✅, T-009 ✅, T-010 ✅ | 🟢 Complete | All MVP adapters implemented + deepened with rule coverage and tests |
 | **E — Reporting** | T-011 complete, T-012 complete | Complete | Ready for CLI/MCP entrypoints |
 | **F — Entrypoints** | T-013 complete, T-014 complete | Complete | Ready for operational surface |
 | **G — Operational** | T-015 complete | Complete | Operational surface available |
@@ -26,6 +26,22 @@
 ---
 
 ## ✅ Completed
+
+### T-008 / T-009 - Deepened Python & JS/TS adapters [COMPLETED 2026-05-30]
+- Added 12 high-signal rules to `sample_rules.json` (→ 124) covering SPEC detector lists.
+- Python (py-005..py-010): unsafe deserialization (pickle/`yaml.load`), command injection (`subprocess shell=True`/`os.system`), `eval`/`exec`, debug mode, permissive CORS, path traversal via request input.
+- JS/TS (js-004..js-009): `child_process.exec`, SSRF via axios/fetch+`req.*`, `eval`, prototype pollution (`__proto__`), token in `localStorage`, React `dangerouslySetInnerHTML=`.
+- Added fixtures `tests/fixtures/python_app/{vulnerable,safe}.py` and `tests/fixtures/js_app/{vulnerable,safe}.js`; `TestPythonAdapterDepth` + `TestJsAdapterDepth` (6 tests) verifying all detectors fire on vulnerable, none on safe (clean of ALL py-/js- rules), and cross-adapter exclusion.
+- Trident audit: both APPROVE-WITH-CONDITIONS; all 12 patterns confirmed linear (no ReDoS); `py-007 \beval(` correctly does not match `literal_eval(`. Tightened `py-010` to single-line. Documented known false-negative gaps (os.popen, `request.` vs `req.`, `constructor.prototype`, spawn shell:true) and the pre-existing no-regex-timeout/double-copy memory concern as follow-ups.
+- Verification: 8 standalone + 14 pattern-smoke checks; 129 passed across the rest of the suite. Real `pytest -q` → ~130.
+
+### T-010 - CI/CD adapter [COMPLETED 2026-05-30]
+- Added `CICDAdapter` in `repo_audit_scan/adapters_final.py`: **path/filename-based** detection (`.github/workflows/*.yml`, `.gitlab-ci.yml`, `.circleci/config.yml`, `azure-pipelines.yml`, `.travis.yml`, `Jenkinsfile`) — not extension-based; `supports_rule` scoped to `ci-cd`/`cicd`/`ci-`/`supply-chain` rules; `scan` via shared `_scan_regex_checks`.
+- Registered as 6th builtin adapter; re-exported from `adapters.py`. No resolution conflict (plain `.yml`/`.yaml` left unclaimed; existing language resolution unchanged).
+- Added 6 rules (`sample_rules.json` → 112): `cicd-001` pull_request_target, `cicd-002` broad token (`write-all`), `cicd-003` unpinned action (flags mutable refs, not 40-char SHA), `cicd-004` script injection via `github.event.*`, `cicd-005` secret echoed to logs, `cicd-006` hardcoded secret literal (AKIA + keyword:literal, excludes `${{ secrets.* }}`).
+- Fixtures `tests/fixtures/cicd_github_actions/{vulnerable,safe}.yml`; 9 `TestCICDAdapter` tests.
+- Trident audit: both APPROVE-WITH-CONDITIONS. Addressed: secret-exposure gap closed via `cicd-006` (rather than importing noisy `secrets`-category rules). Documented limitations (granular perms, `github.event`-only + context-insensitive injection check, composite/`docker://` actions, 10MB input cap) in the adapter docstring; logged as future enhancements.
+- Verification: 28 + 2 standalone logic checks pass; 129 passed across the rest of the suite. Real `pytest -q` → ~124. (In-sandbox pytest on edited files unreliable — see L-002.)
 
 ### T-007 - PHP/WordPress adapter [COMPLETED 2026-05-30]
 - Added `PhpAdapter` in `repo_audit_scan/adapters_final.py`: detects `.php/.phtml/.php3-5`; frameworks wordpress/laravel/symfony/drupal/codeigniter; `supports_rule` excludes other-language rules.
@@ -244,10 +260,14 @@
 
 ## 📋 Pending (in critical-path order)
 
-- T-010 (CI/CD adapter) — last genuine MVP adapter gap
-- T-008 / T-009 (deepen Python & JS/TS adapters to MVP rule depth + dedicated tests; base adapters already exist)
-- T-019 (per-adapter fixture repositories)
-- T-021 (Docs)
+All MVP adapters implemented and deepened. Remaining:
+
+- T-019 (per-adapter fixture repositories) — substantially advanced: php_wordpress_ajax_no_capability, cicd_github_actions, python_app, js_app fixtures now exist; remaining is formalizing/expanding the fixture set
+- T-021 (Docs pass)
+
+Tracked follow-ups (non-blocking, from adapter audits):
+- Regex execution hardening: per-pattern timeout + avoid double in-memory copy in extract_evidence
+- Adapter rule-coverage breadth: granular CI perms, broader untrusted-context/injection sinks, composite/docker:// actions, os.popen/request. variants
 
 ---
 

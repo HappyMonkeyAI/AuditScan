@@ -1,0 +1,19 @@
+# Fixture: insecure GitHub Actions workflow (multiple CI/CD findings).
+name: build
+on:
+  pull_request_target:            # cicd-001: unsafe trigger
+    types: [opened, synchronize]
+
+permissions: write-all            # cicd-002: overly broad token
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: AKIAIOSFODNN7EXAMPLE   # cicd-006: hardcoded secret literal
+    steps:
+      - uses: actions/checkout@v4 # cicd-003: unpinned action (mutable tag)
+      - name: greet
+        run: echo "PR title is ${{ github.event.pull_request.title }}"  # cicd-004: script injection
+      - name: leak
+        run: echo "token=${{ secrets.DEPLOY_TOKEN }}"                   # cicd-005: secret to logs
