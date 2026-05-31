@@ -17,7 +17,7 @@ from repo_audit_scan.cli import (
     _scan_repository,
     _verify_finding,
 )
-from repo_audit_scan.adversarial import challenge_fix_contract, review_finding_contract
+from repo_audit_scan.adversarial import challenge_fix_contract, compare_verdicts_contract, review_finding_contract
 from repo_audit_scan.models import Report
 from repo_audit_scan.reporting import JSONReportWriter, ReportArtifactWriter
 from repo_audit_scan.triage import TriageArtifactWriter
@@ -65,6 +65,7 @@ class MCPServer:
         self.register_tool("reports.list_reports", self.list_reports)
         self.register_tool("adversarial.review_finding", self.adversarial_review_finding)
         self.register_tool("adversarial.challenge_fix", self.adversarial_challenge_fix)
+        self.register_tool("adversarial.compare_verdicts", self.adversarial_compare_verdicts)
 
     def _uptime_seconds(self) -> int:
         return int((datetime.now(timezone.utc) - self.started_at).total_seconds())
@@ -311,6 +312,33 @@ class MCPServer:
         payload = result.to_dict()
         payload["verify"] = verify_result
         return payload
+
+    def adversarial_compare_verdicts(
+        self,
+        report: str,
+        finding_id: str,
+        primary_verdict: str,
+        challenger_verdict: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Compare primary/challenger verdicts and return consensus state and assurance score."""
+        report_path = self._resolve_report_path(report)
+        data = _read_report_json(report_path)
+        finding = next((item for item in data.get("findings", []) if item.get("finding_id") == finding_id), None)
+        if finding is None:
+            raise KeyError(f"Finding not found: {finding_id}")
+
+        resolved_challenger = challenger_verdict
+        if not resolved_challenger:
+            fix_result = self.adversarial_challenge_fix(report=report, finding_id=finding_id)
+            resolved_challenger = str(fix_result.get("verdict", "uncertain"))
+
+        consensus = compare_verdicts_contract(
+            report_id=str(data.get("report_id", "")),
+            finding=finding,
+            primary_verdict=primary_verdict,
+            challenger_verdict=resolved_challenger,
+        )
+        return consensus.to_dict()
 
     @staticmethod
     def _resolve_report_path(report: str) -> Path:

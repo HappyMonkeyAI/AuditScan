@@ -71,6 +71,32 @@ class AdversarialFixChallengeResult:
         }
 
 
+@dataclass
+class AdversarialConsensusResult:
+    """Structured consensus result between primary and challenger verdicts."""
+
+    report_id: str
+    finding_id: str
+    primary_verdict: str
+    challenger_verdict: AdversarialVerdict
+    consensus_state: str
+    assurance_score: int
+    recommended_action: str
+    requires_human_review: bool
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "report_id": self.report_id,
+            "finding_id": self.finding_id,
+            "primary_verdict": self.primary_verdict,
+            "challenger_verdict": self.challenger_verdict.value,
+            "consensus_state": self.consensus_state,
+            "assurance_score": self.assurance_score,
+            "recommended_action": self.recommended_action,
+            "requires_human_review": self.requires_human_review,
+        }
+
+
 def review_finding_contract(report_id: str, finding: Dict[str, Any], challenge_notes: Optional[str] = None) -> AdversarialReviewResult:
     """Build a first-pass adversarial review payload for a finding."""
     finding_id = str(finding.get("finding_id", "unknown-finding"))
@@ -157,6 +183,48 @@ def challenge_fix_contract(
         confidence_delta=confidence_delta,
         rationale=rationale,
         exploit_attempts=exploit_attempts,
+        recommended_action=recommended_action,
+        requires_human_review=requires_human_review,
+    )
+
+
+def compare_verdicts_contract(
+    report_id: str,
+    finding: Dict[str, Any],
+    primary_verdict: str,
+    challenger_verdict: str,
+) -> AdversarialConsensusResult:
+    """Build consensus and assurance score from primary/challenger verdicts."""
+    finding_id = str(finding.get("finding_id", "unknown-finding"))
+    severity = str(finding.get("severity", "")).lower()
+
+    primary = primary_verdict.strip().lower()
+    challenger = challenger_verdict.strip().lower()
+    if challenger not in {"support", "challenge", "uncertain"}:
+        challenger = "uncertain"
+
+    if primary == "resolved" and challenger == "support":
+        consensus_state = "agree"
+        assurance_score = 90
+        recommended_action = "close"
+    elif primary == "unresolved" and challenger == "challenge":
+        consensus_state = "agree"
+        assurance_score = 80
+        recommended_action = "retest"
+    else:
+        consensus_state = "contested"
+        assurance_score = 45 if challenger == "challenge" else 55
+        recommended_action = "escalate_human"
+
+    requires_human_review = consensus_state == "contested" or (severity == "critical" and challenger != "support")
+
+    return AdversarialConsensusResult(
+        report_id=report_id,
+        finding_id=finding_id,
+        primary_verdict=primary,
+        challenger_verdict=AdversarialVerdict(challenger),
+        consensus_state=consensus_state,
+        assurance_score=assurance_score,
         recommended_action=recommended_action,
         requires_human_review=requires_human_review,
     )

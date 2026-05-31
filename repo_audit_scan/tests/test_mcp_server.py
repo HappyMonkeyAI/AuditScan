@@ -26,6 +26,7 @@ def test_mcp_server_registers_default_tools():
     assert "reports.list_reports" in tools
     assert "adversarial.review_finding" in tools
     assert "adversarial.challenge_fix" in tools
+    assert "adversarial.compare_verdicts" in tools
 
 
 def test_scan_and_triage_and_verify_flow(tmp_path):
@@ -315,3 +316,55 @@ def test_adversarial_challenge_fix_contract(tmp_path):
     )
     assert resolved["verify"]["resolved"] is True
     assert resolved["verdict"] == "support"
+
+
+def test_adversarial_compare_verdicts_contract(tmp_path):
+    """Consensus tool should return assurance score and consensus state."""
+    from repo_audit_scan.models import Confidence, Evidence, Finding, Report, ScanMetadata, Severity
+    from repo_audit_scan.reporting import JSONReportWriter
+
+    server = MCPServer()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    app = repo / "app.js"
+    app.write_text("panel.textContent = userInput;\n", encoding="utf-8")
+
+    metadata = ScanMetadata(
+        schema_version="1.0",
+        tool_version="0.1.0",
+        scan_timestamp="2026-05-31T10:00:00Z",
+        repository_path=str(repo),
+        scanned_files_count=1,
+        skipped_files_count=0,
+    )
+    finding = Finding(
+        finding_id="finding-adv-consensus-001",
+        rule_id="js-002",
+        rule_title="DOM-based XSS",
+        category="xss",
+        severity=Severity.HIGH,
+        confidence=Confidence.HIGH,
+        evidence=[Evidence(file_path="app.js", line_number=1, code_snippet="panel.innerHTML = userInput;")],
+        remediation_guidance="Use textContent and sanitize input.",
+    )
+    report = Report(report_id="adv-consensus-report-001", metadata=metadata, findings=[finding], summary="consensus test")
+    report_path = tmp_path / "report.json"
+    report_path.write_text(JSONReportWriter().to_json(report), encoding="utf-8")
+
+    explicit = server.adversarial_compare_verdicts(
+        report=str(report_path),
+        finding_id="finding-adv-consensus-001",
+        primary_verdict="resolved",
+        challenger_verdict="support",
+    )
+    assert explicit["consensus_state"] == "agree"
+    assert explicit["assurance_score"] >= 80
+    assert explicit["recommended_action"] == "close"
+
+    auto = server.adversarial_compare_verdicts(
+        report=str(report_path),
+        finding_id="finding-adv-consensus-001",
+        primary_verdict="resolved",
+    )
+    assert auto["consensus_state"] in {"agree", "contested"}
+    assert isinstance(auto["assurance_score"], int)
