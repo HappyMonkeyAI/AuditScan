@@ -151,16 +151,16 @@ Tracks:
 **Track:** J | **Depends on:** T-001, T-011, T-014 | **Status:** COMPLETE
 
 ### T-019 — Test scaffolding and fixture repositories
-- [ ] Status
-**Track:** K | **Depends on:** T-001 | **Status:** 🔴 Pending
+- [x] Status
+**Track:** K | **Depends on:** T-001 | **Status:** COMPLETE (2026-05-30) — repo-shaped fixtures + end-to-end scan integration test
 
 ### T-020 — Test suites (rules, scoring, reports, CLI, MCP, diagnostics, dep, safety)
 - [x] Status
 **Track:** K | **Depends on:** each respective implementation | **Status:** COMPLETE
 
 ### T-021 — Documentation pass (README, AGENTS hygiene)
-- [ ] Status
-**Track:** L | **Depends on:** T-013, T-014, T-015 | **Status:** 🔴 Pending
+- [x] Status
+**Track:** L | **Depends on:** T-013, T-014, T-015 | **Status:** COMPLETE (2026-05-30) — README refresh + ARCHITECTURE.md + TROUBLESHOOTING.md
 
 ---
 
@@ -176,6 +176,16 @@ Tracks:
 - [ ] **R-012 — docs.apply_living_doc_updates**
 - [ ] **R-013 — docs.verify_living_docs**
 - [ ] **R-014 — Phase 2 ACs**
+
+### Phase 3 — Adversarial Assurance Loop
+- [ ] **R-020 — adversarial.review_finding MCP tool contract and schemas**
+- [ ] **R-021 — adversarial.challenge_fix MCP tool contract and schemas**
+- [ ] **R-022 — adversarial.compare_verdicts consensus + assurance score**
+- [ ] **R-023 — challenger prompt pack and lane-locked agent roles**
+- [ ] **R-024 — adversarial security test generation hooks**
+- [ ] **R-025 — assurance report artifacts (`assurance.md` / `assurance.json`)**
+- [ ] **R-026 — governance rules (human-review triggers for contested critical findings)**
+- [ ] **R-027 — Phase 3 ACs + end-to-end adversarial workflow tests**
 
 ---
 

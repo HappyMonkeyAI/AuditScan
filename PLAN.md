@@ -182,6 +182,26 @@ Consider: a future `repo-scan-all` wrapper MCP that runs both and returns a unif
 
 ---
 
+## Phase 3 Extension — Adversarial Assurance Loop
+
+After the MVP scan/triage/verify flow, add an adversarial lane where a challenger
+agent reviews findings and attempts to invalidate weak fixes.
+
+Proposed post-MVP sequence:
+
+```text
+scan -> triage -> fix -> verify_fix -> adversarial_challenge -> consensus -> close
+```
+
+Planned capabilities:
+- `adversarial.review_finding(report_id, finding_id)`
+- `adversarial.challenge_fix(report_id, finding_id, patch_ref?)`
+- `adversarial.compare_verdicts(report_id)`
+- Assurance artifacts (`assurance.md` / `assurance.json`) with support/challenge outcomes,
+  confidence adjustments, and human-review triggers for contested critical findings.
+
+---
+
 ## Agent Workflow Integration
 
 With both MCPs connected, an agent can run the full audit-to-fix loop autonomously:
