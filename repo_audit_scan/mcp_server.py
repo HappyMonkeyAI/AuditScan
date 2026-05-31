@@ -18,6 +18,7 @@ from repo_audit_scan.cli import (
     _verify_finding,
 )
 from repo_audit_scan.adversarial import challenge_fix_contract, compare_verdicts_contract, review_finding_contract
+from repo_audit_scan.adversarial_prompts import get_prompt_pack
 from repo_audit_scan.models import Report
 from repo_audit_scan.reporting import JSONReportWriter, ReportArtifactWriter
 from repo_audit_scan.triage import TriageArtifactWriter
@@ -66,6 +67,7 @@ class MCPServer:
         self.register_tool("adversarial.review_finding", self.adversarial_review_finding)
         self.register_tool("adversarial.challenge_fix", self.adversarial_challenge_fix)
         self.register_tool("adversarial.compare_verdicts", self.adversarial_compare_verdicts)
+        self.register_tool("adversarial.get_prompt_pack", self.adversarial_get_prompt_pack)
 
     def _uptime_seconds(self) -> int:
         return int((datetime.now(timezone.utc) - self.started_at).total_seconds())
@@ -339,6 +341,10 @@ class MCPServer:
             challenger_verdict=resolved_challenger,
         )
         return consensus.to_dict()
+
+    def adversarial_get_prompt_pack(self) -> Dict[str, Any]:
+        """Return lane-locked adversarial prompt pack for agent roles."""
+        return get_prompt_pack()
 
     @staticmethod
     def _resolve_report_path(report: str) -> Path:

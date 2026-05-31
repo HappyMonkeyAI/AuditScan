@@ -27,6 +27,7 @@ def test_mcp_server_registers_default_tools():
     assert "adversarial.review_finding" in tools
     assert "adversarial.challenge_fix" in tools
     assert "adversarial.compare_verdicts" in tools
+    assert "adversarial.get_prompt_pack" in tools
 
 
 def test_scan_and_triage_and_verify_flow(tmp_path):
@@ -368,3 +369,25 @@ def test_adversarial_compare_verdicts_contract(tmp_path):
     )
     assert auto["consensus_state"] in {"agree", "contested"}
     assert isinstance(auto["assurance_score"], int)
+
+
+def test_adversarial_prompt_pack_contract():
+    """Prompt pack should expose lane-locked roles with required output fields."""
+    server = MCPServer()
+    payload = server.adversarial_get_prompt_pack()
+
+    assert payload["version"] == "1.0"
+    assert payload["workflow"] == [
+        "adversarial.review_finding",
+        "adversarial.challenge_fix",
+        "adversarial.compare_verdicts",
+    ]
+    roles = payload["roles"]
+    role_names = {item["role"] for item in roles}
+    assert role_names == {"reviewer", "challenger", "consensus"}
+    for role in roles:
+        assert role["does"]
+        assert role["does_not"]
+        assert role["required_output"]
+        assert "{finding_id}" in role["prompt_template"]
+        assert "{report_id}" in role["prompt_template"]
