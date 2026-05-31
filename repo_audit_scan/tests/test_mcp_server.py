@@ -25,6 +25,7 @@ def test_mcp_server_registers_default_tools():
     assert "diagnostics.run_self_check" in tools
     assert "reports.list_reports" in tools
     assert "adversarial.review_finding" in tools
+    assert "adversarial.challenge_fix" in tools
 
 
 def test_scan_and_triage_and_verify_flow(tmp_path):
@@ -258,3 +259,59 @@ def test_adversarial_review_finding_contract(tmp_path):
     assert isinstance(result["confidence_delta"], int)
     assert isinstance(result["evidence_delta"], list)
     assert result["recommended_action"] in {"accept", "retest", "escalate_human"}
+
+
+def test_adversarial_challenge_fix_contract(tmp_path):
+    """Adversarial fix challenge should include verify payload and challenger verdict."""
+    from repo_audit_scan.models import Confidence, Evidence, Finding, Report, ScanMetadata, Severity
+    from repo_audit_scan.reporting import JSONReportWriter
+
+    server = MCPServer()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    app = repo / "app.js"
+    app.write_text("panel.innerHTML = userInput;\n", encoding="utf-8")
+
+    metadata = ScanMetadata(
+        schema_version="1.0",
+        tool_version="0.1.0",
+        scan_timestamp="2026-05-31T09:15:00Z",
+        repository_path=str(repo),
+        scanned_files_count=1,
+        skipped_files_count=0,
+    )
+    finding = Finding(
+        finding_id="finding-adv-fix-001",
+        rule_id="js-002",
+        rule_title="DOM-based XSS",
+        category="xss",
+        severity=Severity.HIGH,
+        confidence=Confidence.HIGH,
+        evidence=[Evidence(file_path="app.js", line_number=1, code_snippet="panel.innerHTML = userInput;")],
+        remediation_guidance="Use textContent and sanitize input.",
+    )
+    report = Report(report_id="adv-fix-report-001", metadata=metadata, findings=[finding], summary="adv fix test")
+    report_path = tmp_path / "report.json"
+    report_path.write_text(JSONReportWriter().to_json(report), encoding="utf-8")
+
+    unresolved = server.adversarial_challenge_fix(
+        report=str(report_path),
+        finding_id="finding-adv-fix-001",
+        patch_ref="abc123",
+        challenge_notes="attempted encoded payload bypass",
+    )
+    assert unresolved["report_id"] == "adv-fix-report-001"
+    assert unresolved["finding_id"] == "finding-adv-fix-001"
+    assert unresolved["patch_ref"] == "abc123"
+    assert unresolved["verify"]["resolved"] is False
+    assert unresolved["verdict"] in {"challenge", "uncertain", "support"}
+    assert unresolved["recommended_action"] in {"accept", "retest", "escalate_human"}
+
+    app.write_text("panel.textContent = userInput;\n", encoding="utf-8")
+    resolved = server.adversarial_challenge_fix(
+        report=str(report_path),
+        finding_id="finding-adv-fix-001",
+        patch_ref="def456",
+    )
+    assert resolved["verify"]["resolved"] is True
+    assert resolved["verdict"] == "support"

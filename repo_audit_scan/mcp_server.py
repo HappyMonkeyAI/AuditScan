@@ -17,7 +17,7 @@ from repo_audit_scan.cli import (
     _scan_repository,
     _verify_finding,
 )
-from repo_audit_scan.adversarial import review_finding_contract
+from repo_audit_scan.adversarial import challenge_fix_contract, review_finding_contract
 from repo_audit_scan.models import Report
 from repo_audit_scan.reporting import JSONReportWriter, ReportArtifactWriter
 from repo_audit_scan.triage import TriageArtifactWriter
@@ -64,6 +64,7 @@ class MCPServer:
         self.register_tool("diagnostics.run_self_check", self.run_self_check)
         self.register_tool("reports.list_reports", self.list_reports)
         self.register_tool("adversarial.review_finding", self.adversarial_review_finding)
+        self.register_tool("adversarial.challenge_fix", self.adversarial_challenge_fix)
 
     def _uptime_seconds(self) -> int:
         return int((datetime.now(timezone.utc) - self.started_at).total_seconds())
@@ -280,6 +281,36 @@ class MCPServer:
             challenge_notes=challenge_notes,
         )
         return result.to_dict()
+
+    def adversarial_challenge_fix(
+        self,
+        report: str,
+        finding_id: str,
+        patch_ref: Optional[str] = None,
+        challenge_notes: Optional[str] = None,
+        rules_path: Optional[str] = None,
+        repo_path: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Return a first-pass adversarial fix challenge contract for a finding."""
+        report_path = self._resolve_report_path(report)
+        data = _read_report_json(report_path)
+        finding = next((item for item in data.get("findings", []) if item.get("finding_id") == finding_id), None)
+        if finding is None:
+            raise KeyError(f"Finding not found: {finding_id}")
+
+        registry = _load_rules(rules_path)
+        override = Path(repo_path).resolve() if repo_path else None
+        verify_result = _verify_finding(data, finding_id, registry, override)
+        result = challenge_fix_contract(
+            report_id=str(data.get("report_id", "")),
+            finding=finding,
+            verify_resolved=bool(verify_result.get("resolved", False)),
+            patch_ref=patch_ref,
+            challenge_notes=challenge_notes,
+        )
+        payload = result.to_dict()
+        payload["verify"] = verify_result
+        return payload
 
     @staticmethod
     def _resolve_report_path(report: str) -> Path:
