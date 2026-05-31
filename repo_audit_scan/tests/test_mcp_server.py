@@ -24,6 +24,7 @@ def test_mcp_server_registers_default_tools():
     assert "diagnostics.validate_config" in tools
     assert "diagnostics.run_self_check" in tools
     assert "reports.list_reports" in tools
+    assert "adversarial.review_finding" in tools
 
 
 def test_scan_and_triage_and_verify_flow(tmp_path):
@@ -211,3 +212,49 @@ def test_mcp_verify_blocks_path_traversal_in_evidence(tmp_path):
     result = server.verify_fix(report=str(report_path), finding_id="finding-path-001")
     assert result["resolved"] is False
     assert result["remaining_locations"] == ["../outside.py:blocked_path"]
+
+
+def test_adversarial_review_finding_contract(tmp_path):
+    """Adversarial finding review should return structured contract fields."""
+    from repo_audit_scan.models import Confidence, Evidence, Finding, Report, ScanMetadata, Severity
+    from repo_audit_scan.reporting import JSONReportWriter
+
+    server = MCPServer()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    metadata = ScanMetadata(
+        schema_version="1.0",
+        tool_version="0.1.0",
+        scan_timestamp="2026-05-31T09:00:00Z",
+        repository_path=str(repo),
+        scanned_files_count=1,
+        skipped_files_count=0,
+    )
+    finding = Finding(
+        finding_id="finding-adv-001",
+        rule_id="js-002",
+        rule_title="DOM-based XSS",
+        category="xss",
+        severity=Severity.HIGH,
+        confidence=Confidence.HIGH,
+        evidence=[
+            Evidence(file_path="app.js", line_number=1, code_snippet="element.innerHTML = userInput"),
+            Evidence(file_path="app.js", line_number=2, code_snippet="render(userInput)"),
+        ],
+        remediation_guidance="Use textContent and sanitize input.",
+    )
+    report = Report(report_id="adv-report-001", metadata=metadata, findings=[finding], summary="adv test")
+    report_path = tmp_path / "report.json"
+    report_path.write_text(JSONReportWriter().to_json(report), encoding="utf-8")
+
+    result = server.adversarial_review_finding(
+        report=str(report_path),
+        finding_id="finding-adv-001",
+        challenge_notes="probe DOM sink bypass via encoded payloads",
+    )
+    assert result["report_id"] == "adv-report-001"
+    assert result["finding_id"] == "finding-adv-001"
+    assert result["verdict"] in {"support", "challenge", "uncertain"}
+    assert isinstance(result["confidence_delta"], int)
+    assert isinstance(result["evidence_delta"], list)
+    assert result["recommended_action"] in {"accept", "retest", "escalate_human"}

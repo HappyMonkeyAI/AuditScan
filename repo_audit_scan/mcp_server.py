@@ -17,6 +17,7 @@ from repo_audit_scan.cli import (
     _scan_repository,
     _verify_finding,
 )
+from repo_audit_scan.adversarial import review_finding_contract
 from repo_audit_scan.models import Report
 from repo_audit_scan.reporting import JSONReportWriter, ReportArtifactWriter
 from repo_audit_scan.triage import TriageArtifactWriter
@@ -62,6 +63,7 @@ class MCPServer:
         self.register_tool("diagnostics.validate_config", self.validate_config)
         self.register_tool("diagnostics.run_self_check", self.run_self_check)
         self.register_tool("reports.list_reports", self.list_reports)
+        self.register_tool("adversarial.review_finding", self.adversarial_review_finding)
 
     def _uptime_seconds(self) -> int:
         return int((datetime.now(timezone.utc) - self.started_at).total_seconds())
@@ -259,6 +261,25 @@ class MCPServer:
 
         reports = sorted(set(reports))
         return {"count": len(reports), "reports": reports}
+
+    def adversarial_review_finding(
+        self,
+        report: str,
+        finding_id: str,
+        challenge_notes: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Return a first-pass adversarial review contract for a finding."""
+        report_path = self._resolve_report_path(report)
+        data = _read_report_json(report_path)
+        finding = next((item for item in data.get("findings", []) if item.get("finding_id") == finding_id), None)
+        if finding is None:
+            raise KeyError(f"Finding not found: {finding_id}")
+        result = review_finding_contract(
+            report_id=str(data.get("report_id", "")),
+            finding=finding,
+            challenge_notes=challenge_notes,
+        )
+        return result.to_dict()
 
     @staticmethod
     def _resolve_report_path(report: str) -> Path:
