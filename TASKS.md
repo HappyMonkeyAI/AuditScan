@@ -178,14 +178,14 @@ Tracks:
 - [ ] **R-014 — Phase 2 ACs**
 
 ### Phase 3 — Adversarial Assurance Loop
-- [ ] **R-020 — adversarial.review_finding MCP tool contract and schemas**
-- [ ] **R-021 — adversarial.challenge_fix MCP tool contract and schemas**
-- [ ] **R-022 — adversarial.compare_verdicts consensus + assurance score**
-- [ ] **R-023 — challenger prompt pack and lane-locked agent roles**
-- [ ] **R-024 — adversarial security test generation hooks**
-- [ ] **R-025 — assurance report artifacts (`assurance.md` / `assurance.json`)**
-- [ ] **R-026 — governance rules (human-review triggers for contested critical findings)**
-- [ ] **R-027 — Phase 3 ACs + end-to-end adversarial workflow tests**
+- [x] **R-020 — adversarial.review_finding MCP tool contract and schemas**
+- [x] **R-021 — adversarial.challenge_fix MCP tool contract and schemas**
+- [x] **R-022 — adversarial.compare_verdicts consensus + assurance score**
+- [x] **R-023 — challenger prompt pack and lane-locked agent roles**
+- [x] **R-024 — adversarial security test generation hooks**
+- [x] **R-025 — assurance report artifacts (`assurance.md` / `assurance.json`)**
+- [x] **R-026 — governance rules (human-review triggers for contested critical findings)**
+- [x] **R-027 — Phase 3 ACs + end-to-end adversarial workflow tests**
 
 ---
 

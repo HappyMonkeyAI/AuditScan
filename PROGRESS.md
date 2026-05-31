@@ -298,3 +298,23 @@ Tracked follow-ups (non-blocking, from adapter audits + dogfooding):
 - **JSON:** Full round-trip verified (Object → JSON → Object)
 
 **Ready to proceed to T-002 immediately.**
+
+---
+
+## 🚀 Phase 3 Progress (Adversarial Assurance Loop)
+
+### Status: COMPLETE (R-020 through R-027)
+
+- ✅ **R-020** `adversarial.review_finding` MCP contract and schema output.
+- ✅ **R-021** `adversarial.challenge_fix` MCP contract with embedded `verify_fix` output.
+- ✅ **R-022** `adversarial.compare_verdicts` consensus + assurance scoring.
+- ✅ **R-023** Lane-locked challenger prompt pack (`reviewer`, `challenger`, `consensus`) and MCP access.
+- ✅ **R-024** Adversarial test intent generation hooks (`regression`, `adversarial_bypass`, `boundary`).
+- ✅ **R-025** Assurance artifact writers (`assurance.json`, `assurance.md`) and MCP writer tool.
+- ✅ **R-026** Governance trigger evaluation (`contested_critical_finding`, low-assurance and escalation triggers).
+- ✅ **R-027** End-to-end adversarial workflow test chaining review → challenge → consensus → governance → assurance artifacts → test intents.
+
+### Verification Snapshot
+
+- `repo_audit_scan/tests/test_mcp_server.py` latest run: **16 passed**
+- Includes explicit contract tests for all Phase 3 tools and one end-to-end adversarial workflow path.

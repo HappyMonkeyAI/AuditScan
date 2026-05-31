@@ -563,3 +563,91 @@ def test_adversarial_evaluate_governance_allows_auto_close(tmp_path):
     assert result["decision"] == "auto_close_allowed"
     assert result["requires_human_review"] is False
     assert result["triggers"] == []
+
+
+def test_adversarial_end_to_end_workflow(tmp_path):
+    """End-to-end adversarial flow should produce consistent outputs across all phase-3 tools."""
+    from repo_audit_scan.models import Confidence, Evidence, Finding, Report, ScanMetadata, Severity
+    from repo_audit_scan.reporting import JSONReportWriter
+
+    server = MCPServer()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    source = repo / "app.js"
+    source.write_text("panel.innerHTML = userInput;\n", encoding="utf-8")
+
+    metadata = ScanMetadata(
+        schema_version="1.0",
+        tool_version="0.1.0",
+        scan_timestamp="2026-05-31T11:45:00Z",
+        repository_path=str(repo),
+        scanned_files_count=1,
+        skipped_files_count=0,
+    )
+    finding = Finding(
+        finding_id="finding-e2e-001",
+        rule_id="js-002",
+        rule_title="DOM-based XSS",
+        category="xss",
+        severity=Severity.HIGH,
+        confidence=Confidence.HIGH,
+        evidence=[Evidence(file_path="app.js", line_number=1, code_snippet="panel.innerHTML = userInput;")],
+        remediation_guidance="Use textContent and sanitize input.",
+    )
+    report = Report(report_id="e2e-report-001", metadata=metadata, findings=[finding], summary="e2e adversarial test")
+    report_path = tmp_path / "report.json"
+    report_path.write_text(JSONReportWriter().to_json(report), encoding="utf-8")
+
+    review = server.adversarial_review_finding(report=str(report_path), finding_id="finding-e2e-001")
+    assert review["finding_id"] == "finding-e2e-001"
+    assert review["verdict"] in {"support", "challenge", "uncertain"}
+
+    challenge = server.adversarial_challenge_fix(
+        report=str(report_path),
+        finding_id="finding-e2e-001",
+        patch_ref="commit-before-fix",
+    )
+    assert challenge["verify"]["resolved"] is False
+
+    # Simulate fix then recompute challenge.
+    source.write_text("panel.textContent = userInput;\n", encoding="utf-8")
+    challenge_after_fix = server.adversarial_challenge_fix(
+        report=str(report_path),
+        finding_id="finding-e2e-001",
+        patch_ref="commit-after-fix",
+    )
+    assert challenge_after_fix["verify"]["resolved"] is True
+
+    consensus = server.adversarial_compare_verdicts(
+        report=str(report_path),
+        finding_id="finding-e2e-001",
+        primary_verdict="resolved",
+        challenger_verdict=challenge_after_fix["verdict"],
+    )
+    assert consensus["consensus_state"] in {"agree", "contested"}
+    assert isinstance(consensus["assurance_score"], int)
+
+    governance = server.adversarial_evaluate_governance(
+        report=str(report_path),
+        finding_id="finding-e2e-001",
+        primary_verdict="resolved",
+        challenger_verdict=challenge_after_fix["verdict"],
+    )
+    assert governance["decision"] in {"auto_close_allowed", "human_review_required"}
+
+    assurance = server.adversarial_write_assurance_report(
+        report=str(report_path),
+        finding_id="finding-e2e-001",
+        primary_verdict="resolved",
+        challenger_verdict=challenge_after_fix["verdict"],
+        output_dir=str(tmp_path / "assurance"),
+    )
+    assert Path(assurance["artifacts"]["json"]).exists()
+    assert Path(assurance["artifacts"]["markdown"]).exists()
+
+    intents = server.adversarial_generate_test_intents(
+        report=str(report_path),
+        finding_id="finding-e2e-001",
+    )
+    assert intents["test_intents"]
+    assert intents["suggested_execution_order"]
