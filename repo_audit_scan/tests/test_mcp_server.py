@@ -30,6 +30,7 @@ def test_mcp_server_registers_default_tools():
     assert "adversarial.get_prompt_pack" in tools
     assert "adversarial.generate_test_intents" in tools
     assert "adversarial.write_assurance_report" in tools
+    assert "adversarial.evaluate_governance" in tools
 
 
 def test_scan_and_triage_and_verify_flow(tmp_path):
@@ -480,3 +481,85 @@ def test_adversarial_write_assurance_report(tmp_path):
     assert Path(artifacts["json"]).exists()
     assert Path(artifacts["markdown"]).exists()
     assert result["assurance"]["consensus_state"] == "agree"
+
+
+def test_adversarial_evaluate_governance_contested_critical(tmp_path):
+    """Contested critical findings should trigger mandatory human review."""
+    from repo_audit_scan.models import Confidence, Evidence, Finding, Report, ScanMetadata, Severity
+    from repo_audit_scan.reporting import JSONReportWriter
+
+    server = MCPServer()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    metadata = ScanMetadata(
+        schema_version="1.0",
+        tool_version="0.1.0",
+        scan_timestamp="2026-05-31T11:20:00Z",
+        repository_path=str(repo),
+        scanned_files_count=1,
+        skipped_files_count=0,
+    )
+    finding = Finding(
+        finding_id="finding-gov-001",
+        rule_id="auth-001",
+        rule_title="Critical auth bypass",
+        category="authentication",
+        severity=Severity.CRITICAL,
+        confidence=Confidence.HIGH,
+        evidence=[Evidence(file_path="auth.py", line_number=10, code_snippet="allow_all = True")],
+        remediation_guidance="Enforce role checks.",
+    )
+    report = Report(report_id="gov-report-001", metadata=metadata, findings=[finding], summary="gov test")
+    report_path = tmp_path / "report.json"
+    report_path.write_text(JSONReportWriter().to_json(report), encoding="utf-8")
+
+    result = server.adversarial_evaluate_governance(
+        report=str(report_path),
+        finding_id="finding-gov-001",
+        primary_verdict="resolved",
+        challenger_verdict="challenge",
+    )
+    assert result["decision"] == "human_review_required"
+    assert result["requires_human_review"] is True
+    assert "contested_critical_finding" in result["triggers"]
+
+
+def test_adversarial_evaluate_governance_allows_auto_close(tmp_path):
+    """High-assurance agreement should allow auto-close."""
+    from repo_audit_scan.models import Confidence, Evidence, Finding, Report, ScanMetadata, Severity
+    from repo_audit_scan.reporting import JSONReportWriter
+
+    server = MCPServer()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    metadata = ScanMetadata(
+        schema_version="1.0",
+        tool_version="0.1.0",
+        scan_timestamp="2026-05-31T11:25:00Z",
+        repository_path=str(repo),
+        scanned_files_count=1,
+        skipped_files_count=0,
+    )
+    finding = Finding(
+        finding_id="finding-gov-002",
+        rule_id="js-002",
+        rule_title="DOM-based XSS",
+        category="xss",
+        severity=Severity.HIGH,
+        confidence=Confidence.HIGH,
+        evidence=[Evidence(file_path="ui.js", line_number=7, code_snippet="el.innerHTML = input")],
+        remediation_guidance="Use textContent and sanitize input.",
+    )
+    report = Report(report_id="gov-report-002", metadata=metadata, findings=[finding], summary="gov test")
+    report_path = tmp_path / "report.json"
+    report_path.write_text(JSONReportWriter().to_json(report), encoding="utf-8")
+
+    result = server.adversarial_evaluate_governance(
+        report=str(report_path),
+        finding_id="finding-gov-002",
+        primary_verdict="resolved",
+        challenger_verdict="support",
+    )
+    assert result["decision"] == "auto_close_allowed"
+    assert result["requires_human_review"] is False
+    assert result["triggers"] == []

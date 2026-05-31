@@ -20,6 +20,7 @@ from repo_audit_scan.cli import (
 from repo_audit_scan.adversarial import (
     challenge_fix_contract,
     compare_verdicts_contract,
+    evaluate_governance_contract,
     generate_test_intents_contract,
     review_finding_contract,
 )
@@ -76,6 +77,7 @@ class MCPServer:
         self.register_tool("adversarial.get_prompt_pack", self.adversarial_get_prompt_pack)
         self.register_tool("adversarial.generate_test_intents", self.adversarial_generate_test_intents)
         self.register_tool("adversarial.write_assurance_report", self.adversarial_write_assurance_report)
+        self.register_tool("adversarial.evaluate_governance", self.adversarial_evaluate_governance)
 
     def _uptime_seconds(self) -> int:
         return int((datetime.now(timezone.utc) - self.started_at).total_seconds())
@@ -394,6 +396,34 @@ class MCPServer:
             "assurance": consensus,
             "artifacts": {k: str(v) for k, v in paths.items()},
         }
+
+    def adversarial_evaluate_governance(
+        self,
+        report: str,
+        finding_id: str,
+        primary_verdict: str,
+        challenger_verdict: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Evaluate governance triggers for assurance outcomes."""
+        report_path = self._resolve_report_path(report)
+        data = _read_report_json(report_path)
+        finding = next((item for item in data.get("findings", []) if item.get("finding_id") == finding_id), None)
+        if finding is None:
+            raise KeyError(f"Finding not found: {finding_id}")
+        consensus = self.adversarial_compare_verdicts(
+            report=report,
+            finding_id=finding_id,
+            primary_verdict=primary_verdict,
+            challenger_verdict=challenger_verdict,
+        )
+        governance = evaluate_governance_contract(
+            report_id=str(data.get("report_id", "")),
+            finding=finding,
+            consensus=consensus,
+        )
+        payload = governance.to_dict()
+        payload["consensus"] = consensus
+        return payload
 
     @staticmethod
     def _resolve_report_path(report: str) -> Path:

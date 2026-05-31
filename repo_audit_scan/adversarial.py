@@ -115,6 +115,28 @@ class AdversarialTestIntentResult:
         }
 
 
+@dataclass
+class AdversarialGovernanceResult:
+    """Governance decision output for assurance handling."""
+
+    report_id: str
+    finding_id: str
+    policy_version: str
+    decision: str
+    triggers: List[str]
+    requires_human_review: bool
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "report_id": self.report_id,
+            "finding_id": self.finding_id,
+            "policy_version": self.policy_version,
+            "decision": self.decision,
+            "triggers": self.triggers,
+            "requires_human_review": self.requires_human_review,
+        }
+
+
 def review_finding_contract(report_id: str, finding: Dict[str, Any], challenge_notes: Optional[str] = None) -> AdversarialReviewResult:
     """Build a first-pass adversarial review payload for a finding."""
     finding_id = str(finding.get("finding_id", "unknown-finding"))
@@ -297,4 +319,35 @@ def generate_test_intents_contract(report_id: str, finding: Dict[str, Any]) -> A
         finding_id=finding_id,
         test_intents=intents,
         suggested_execution_order=order,
+    )
+
+
+def evaluate_governance_contract(
+    report_id: str,
+    finding: Dict[str, Any],
+    consensus: Dict[str, Any],
+) -> AdversarialGovernanceResult:
+    """Evaluate governance triggers for assurance decisions."""
+    finding_id = str(finding.get("finding_id", "unknown-finding"))
+    severity = str(finding.get("severity", "")).lower()
+    consensus_state = str(consensus.get("consensus_state", "")).lower()
+    assurance_score = int(consensus.get("assurance_score", 0))
+
+    triggers: List[str] = []
+    if severity == "critical" and consensus_state == "contested":
+        triggers.append("contested_critical_finding")
+    if assurance_score < 60:
+        triggers.append("low_assurance_score")
+    if str(consensus.get("recommended_action", "")).lower() == "escalate_human":
+        triggers.append("explicit_human_escalation")
+
+    requires_human_review = len(triggers) > 0
+    decision = "human_review_required" if requires_human_review else "auto_close_allowed"
+    return AdversarialGovernanceResult(
+        report_id=report_id,
+        finding_id=finding_id,
+        policy_version="1.0",
+        decision=decision,
+        triggers=triggers,
+        requires_human_review=requires_human_review,
     )
