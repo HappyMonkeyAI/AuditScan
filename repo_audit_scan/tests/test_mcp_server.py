@@ -29,6 +29,7 @@ def test_mcp_server_registers_default_tools():
     assert "adversarial.compare_verdicts" in tools
     assert "adversarial.get_prompt_pack" in tools
     assert "adversarial.generate_test_intents" in tools
+    assert "adversarial.write_assurance_report" in tools
 
 
 def test_scan_and_triage_and_verify_flow(tmp_path):
@@ -435,3 +436,47 @@ def test_adversarial_generate_test_intents_contract(tmp_path):
     types = {item["type"] for item in intents}
     assert {"regression", "adversarial_bypass", "boundary"}.issubset(types)
     assert payload["suggested_execution_order"]
+
+
+def test_adversarial_write_assurance_report(tmp_path):
+    """Assurance writer should emit assurance.json and assurance.md artifacts."""
+    from repo_audit_scan.models import Confidence, Evidence, Finding, Report, ScanMetadata, Severity
+    from repo_audit_scan.reporting import JSONReportWriter
+
+    server = MCPServer()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    metadata = ScanMetadata(
+        schema_version="1.0",
+        tool_version="0.1.0",
+        scan_timestamp="2026-05-31T11:00:00Z",
+        repository_path=str(repo),
+        scanned_files_count=1,
+        skipped_files_count=0,
+    )
+    finding = Finding(
+        finding_id="finding-assurance-001",
+        rule_id="js-002",
+        rule_title="DOM-based XSS",
+        category="xss",
+        severity=Severity.HIGH,
+        confidence=Confidence.HIGH,
+        evidence=[Evidence(file_path="ui.js", line_number=7, code_snippet="el.innerHTML = input")],
+        remediation_guidance="Use textContent and sanitize input.",
+    )
+    report = Report(report_id="assurance-report-001", metadata=metadata, findings=[finding], summary="assurance test")
+    report_path = tmp_path / "report.json"
+    report_path.write_text(JSONReportWriter().to_json(report), encoding="utf-8")
+
+    out = tmp_path / "assurance-out"
+    result = server.adversarial_write_assurance_report(
+        report=str(report_path),
+        finding_id="finding-assurance-001",
+        primary_verdict="resolved",
+        challenger_verdict="support",
+        output_dir=str(out),
+    )
+    artifacts = result["artifacts"]
+    assert Path(artifacts["json"]).exists()
+    assert Path(artifacts["markdown"]).exists()
+    assert result["assurance"]["consensus_state"] == "agree"

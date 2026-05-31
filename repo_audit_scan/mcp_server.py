@@ -24,6 +24,7 @@ from repo_audit_scan.adversarial import (
     review_finding_contract,
 )
 from repo_audit_scan.adversarial_prompts import get_prompt_pack
+from repo_audit_scan.adversarial_reporting import write_assurance_artifacts
 from repo_audit_scan.models import Report
 from repo_audit_scan.reporting import JSONReportWriter, ReportArtifactWriter
 from repo_audit_scan.triage import TriageArtifactWriter
@@ -74,6 +75,7 @@ class MCPServer:
         self.register_tool("adversarial.compare_verdicts", self.adversarial_compare_verdicts)
         self.register_tool("adversarial.get_prompt_pack", self.adversarial_get_prompt_pack)
         self.register_tool("adversarial.generate_test_intents", self.adversarial_generate_test_intents)
+        self.register_tool("adversarial.write_assurance_report", self.adversarial_write_assurance_report)
 
     def _uptime_seconds(self) -> int:
         return int((datetime.now(timezone.utc) - self.started_at).total_seconds())
@@ -369,6 +371,29 @@ class MCPServer:
             finding=finding,
         )
         return result.to_dict()
+
+    def adversarial_write_assurance_report(
+        self,
+        report: str,
+        finding_id: str,
+        primary_verdict: str,
+        challenger_verdict: Optional[str] = None,
+        output_dir: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Write assurance artifacts from consensus output."""
+        consensus = self.adversarial_compare_verdicts(
+            report=report,
+            finding_id=finding_id,
+            primary_verdict=primary_verdict,
+            challenger_verdict=challenger_verdict,
+        )
+        report_path = self._resolve_report_path(report)
+        destination = Path(output_dir).resolve() if output_dir else report_path.parent
+        paths = write_assurance_artifacts(destination, consensus)
+        return {
+            "assurance": consensus,
+            "artifacts": {k: str(v) for k, v in paths.items()},
+        }
 
     @staticmethod
     def _resolve_report_path(report: str) -> Path:
