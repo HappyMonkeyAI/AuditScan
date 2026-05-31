@@ -17,7 +17,12 @@ from repo_audit_scan.cli import (
     _scan_repository,
     _verify_finding,
 )
-from repo_audit_scan.adversarial import challenge_fix_contract, compare_verdicts_contract, review_finding_contract
+from repo_audit_scan.adversarial import (
+    challenge_fix_contract,
+    compare_verdicts_contract,
+    generate_test_intents_contract,
+    review_finding_contract,
+)
 from repo_audit_scan.adversarial_prompts import get_prompt_pack
 from repo_audit_scan.models import Report
 from repo_audit_scan.reporting import JSONReportWriter, ReportArtifactWriter
@@ -68,6 +73,7 @@ class MCPServer:
         self.register_tool("adversarial.challenge_fix", self.adversarial_challenge_fix)
         self.register_tool("adversarial.compare_verdicts", self.adversarial_compare_verdicts)
         self.register_tool("adversarial.get_prompt_pack", self.adversarial_get_prompt_pack)
+        self.register_tool("adversarial.generate_test_intents", self.adversarial_generate_test_intents)
 
     def _uptime_seconds(self) -> int:
         return int((datetime.now(timezone.utc) - self.started_at).total_seconds())
@@ -345,6 +351,24 @@ class MCPServer:
     def adversarial_get_prompt_pack(self) -> Dict[str, Any]:
         """Return lane-locked adversarial prompt pack for agent roles."""
         return get_prompt_pack()
+
+    def adversarial_generate_test_intents(
+        self,
+        report: str,
+        finding_id: str,
+    ) -> Dict[str, Any]:
+        """Generate adversarial test intents for a finding."""
+        report_path = self._resolve_report_path(report)
+        data = _read_report_json(report_path)
+        finding = next((item for item in data.get("findings", []) if item.get("finding_id") == finding_id), None)
+        if finding is None:
+            raise KeyError(f"Finding not found: {finding_id}")
+
+        result = generate_test_intents_contract(
+            report_id=str(data.get("report_id", "")),
+            finding=finding,
+        )
+        return result.to_dict()
 
     @staticmethod
     def _resolve_report_path(report: str) -> Path:

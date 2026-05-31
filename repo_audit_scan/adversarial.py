@@ -97,6 +97,24 @@ class AdversarialConsensusResult:
         }
 
 
+@dataclass
+class AdversarialTestIntentResult:
+    """Structured adversarial test intent bundle for a finding."""
+
+    report_id: str
+    finding_id: str
+    test_intents: List[Dict[str, Any]]
+    suggested_execution_order: List[str]
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "report_id": self.report_id,
+            "finding_id": self.finding_id,
+            "test_intents": self.test_intents,
+            "suggested_execution_order": self.suggested_execution_order,
+        }
+
+
 def review_finding_contract(report_id: str, finding: Dict[str, Any], challenge_notes: Optional[str] = None) -> AdversarialReviewResult:
     """Build a first-pass adversarial review payload for a finding."""
     finding_id = str(finding.get("finding_id", "unknown-finding"))
@@ -227,4 +245,56 @@ def compare_verdicts_contract(
         assurance_score=assurance_score,
         recommended_action=recommended_action,
         requires_human_review=requires_human_review,
+    )
+
+
+def generate_test_intents_contract(report_id: str, finding: Dict[str, Any]) -> AdversarialTestIntentResult:
+    """Generate adversarial test intents for a finding."""
+    finding_id = str(finding.get("finding_id", "unknown-finding"))
+    rule_id = str(finding.get("rule_id", "unknown-rule"))
+    severity = str(finding.get("severity", "medium")).lower()
+    evidence = finding.get("evidence", []) or []
+    first_evidence = evidence[0] if evidence else {}
+    file_path = str(first_evidence.get("file_path", "unknown-file"))
+    line_number = first_evidence.get("line_number")
+    location = f"{file_path}:{line_number}" if line_number else file_path
+
+    risk_weight = {"critical": 5, "high": 4, "medium": 3, "low": 2, "info": 1}.get(severity, 3)
+
+    intents: List[Dict[str, Any]] = [
+        {
+            "intent_id": f"{finding_id}-regression",
+            "type": "regression",
+            "title": f"Regression guard for {rule_id}",
+            "goal": "Ensure the original vulnerable path remains closed.",
+            "target_location": location,
+            "strategy": "Reproduce original evidence path and assert safe handling.",
+            "priority": risk_weight + 1,
+        },
+        {
+            "intent_id": f"{finding_id}-bypass",
+            "type": "adversarial_bypass",
+            "title": f"Bypass variants for {rule_id}",
+            "goal": "Probe encoded/obfuscated variants that may bypass the fix.",
+            "target_location": location,
+            "strategy": "Mutate input encoding, case, and payload shape to test bypass resilience.",
+            "priority": risk_weight,
+        },
+        {
+            "intent_id": f"{finding_id}-boundary",
+            "type": "boundary",
+            "title": f"Boundary tests for {rule_id}",
+            "goal": "Validate edge-case behavior at trust boundaries.",
+            "target_location": location,
+            "strategy": "Test empty, null, max-size, and malformed inputs at entry boundary.",
+            "priority": max(1, risk_weight - 1),
+        },
+    ]
+
+    order = [item["intent_id"] for item in sorted(intents, key=lambda item: item["priority"], reverse=True)]
+    return AdversarialTestIntentResult(
+        report_id=report_id,
+        finding_id=finding_id,
+        test_intents=intents,
+        suggested_execution_order=order,
     )

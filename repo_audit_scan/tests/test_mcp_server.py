@@ -28,6 +28,7 @@ def test_mcp_server_registers_default_tools():
     assert "adversarial.challenge_fix" in tools
     assert "adversarial.compare_verdicts" in tools
     assert "adversarial.get_prompt_pack" in tools
+    assert "adversarial.generate_test_intents" in tools
 
 
 def test_scan_and_triage_and_verify_flow(tmp_path):
@@ -391,3 +392,46 @@ def test_adversarial_prompt_pack_contract():
         assert role["required_output"]
         assert "{finding_id}" in role["prompt_template"]
         assert "{report_id}" in role["prompt_template"]
+
+
+def test_adversarial_generate_test_intents_contract(tmp_path):
+    """Adversarial test intent generation should return ordered structured intents."""
+    from repo_audit_scan.models import Confidence, Evidence, Finding, Report, ScanMetadata, Severity
+    from repo_audit_scan.reporting import JSONReportWriter
+
+    server = MCPServer()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    metadata = ScanMetadata(
+        schema_version="1.0",
+        tool_version="0.1.0",
+        scan_timestamp="2026-05-31T10:30:00Z",
+        repository_path=str(repo),
+        scanned_files_count=1,
+        skipped_files_count=0,
+    )
+    finding = Finding(
+        finding_id="finding-intent-001",
+        rule_id="js-002",
+        rule_title="DOM-based XSS",
+        category="xss",
+        severity=Severity.HIGH,
+        confidence=Confidence.HIGH,
+        evidence=[Evidence(file_path="ui/app.js", line_number=42, code_snippet="el.innerHTML = userInput")],
+        remediation_guidance="Use textContent and sanitize input.",
+    )
+    report = Report(report_id="intent-report-001", metadata=metadata, findings=[finding], summary="intent test")
+    report_path = tmp_path / "report.json"
+    report_path.write_text(JSONReportWriter().to_json(report), encoding="utf-8")
+
+    payload = server.adversarial_generate_test_intents(
+        report=str(report_path),
+        finding_id="finding-intent-001",
+    )
+    assert payload["report_id"] == "intent-report-001"
+    assert payload["finding_id"] == "finding-intent-001"
+    intents = payload["test_intents"]
+    assert len(intents) >= 3
+    types = {item["type"] for item in intents}
+    assert {"regression", "adversarial_bypass", "boundary"}.issubset(types)
+    assert payload["suggested_execution_order"]
