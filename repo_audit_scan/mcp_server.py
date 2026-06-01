@@ -29,6 +29,15 @@ from repo_audit_scan.adversarial_reporting import write_assurance_artifacts
 from repo_audit_scan.models import Report
 from repo_audit_scan.reporting import JSONReportWriter, ReportArtifactWriter
 from repo_audit_scan.triage import TriageArtifactWriter
+from repo_audit_scan.living_docs import (
+    DocGap,
+    DocPatch,
+    apply_patches,
+    discover_docs_path,
+    propose_living_doc_updates,
+    review_living_docs,
+    verify_gaps,
+)
 
 
 class MCPServer:
@@ -38,6 +47,9 @@ class MCPServer:
         self.tools: Dict[str, Callable[..., Dict[str, Any]]] = {}
         self.started_at = datetime.now(timezone.utc)
         self.last_scan: Optional[Dict[str, Any]] = None
+        # Phase 2: living-docs session state
+        self._last_gaps: list = []
+        self._pending_patches: Dict[str, DocPatch] = {}
         self.register_defaults()
 
     def register_tool(self, name: str, handler: Callable[..., Dict[str, Any]]) -> None:
@@ -78,6 +90,11 @@ class MCPServer:
         self.register_tool("adversarial.generate_test_intents", self.adversarial_generate_test_intents)
         self.register_tool("adversarial.write_assurance_report", self.adversarial_write_assurance_report)
         self.register_tool("adversarial.evaluate_governance", self.adversarial_evaluate_governance)
+        # Phase 2 — Living Documentation Feedback Loop
+        self.register_tool("docs.review_living_docs", self.docs_review_living_docs)
+        self.register_tool("docs.propose_living_doc_updates", self.docs_propose_living_doc_updates)
+        self.register_tool("docs.apply_living_doc_updates", self.docs_apply_living_doc_updates)
+        self.register_tool("docs.verify_living_docs", self.docs_verify_living_docs)
 
     def _uptime_seconds(self) -> int:
         return int((datetime.now(timezone.utc) - self.started_at).total_seconds())
@@ -434,4 +451,138 @@ class MCPServer:
         return fallback
 
 
+    # -----------------------------------------------------------------------
+    # Phase 2 — Living Documentation Feedback Loop
+    # -----------------------------------------------------------------------
+
+    def docs_review_living_docs(
+        self,
+        path: str,
+        docs_path: Optional[str] = None,
+        report_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Compare living docs with the repo and an optional audit report.
+
+        Returns a list of doc gaps (stale, missing, contradicted, unverifiable).
+        Stores the gap list in session state so propose and verify can use it.
+        """
+        repo = Path(path)
+        if not repo.is_dir():
+            raise FileNotFoundError(f"Repository path not found: {path}")
+
+        dp = discover_docs_path(repo, docs_path)
+        report_data: Optional[Dict[str, Any]] = None
+        if report_id:
+            try:
+                rp = self._resolve_report_path(report_id)
+                report_data = _normalize_report_data(_read_report_json(rp))
+            except (FileNotFoundError, KeyError, ValueError):
+                pass
+
+        gaps = review_living_docs(
+            repo_path=repo,
+            docs_path=dp,
+            report_data=report_data,
+        )
+        self._last_gaps = gaps
+        return {
+            "docs_path": str(dp) if dp else None,
+            "gap_count": len(gaps),
+            "gaps": [g.to_dict() for g in gaps],
+        }
+
+    def docs_propose_living_doc_updates(
+        self,
+        path: str,
+        doc_gap_ids: Optional[list] = None,
+        docs_path: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Propose Markdown patches for the requested gap IDs.
+
+        Patches are NOT written to disk. The caller must approve patch IDs
+        and pass them to docs.apply_living_doc_updates to apply them.
+        """
+        if not self._last_gaps:
+            raise ValueError(
+                "No gaps in session — call docs.review_living_docs first"
+            )
+        gap_ids = doc_gap_ids or [g.gap_id for g in self._last_gaps]
+        patches = propose_living_doc_updates(
+            gaps=self._last_gaps,
+            requested_gap_ids=gap_ids,
+        )
+        # Store in session cache so apply can validate them
+        for p in patches:
+            self._pending_patches[p.patch_id] = p
+        return {
+            "patch_count": len(patches),
+            "patches": [p.to_dict() for p in patches],
+        }
+
+    def docs_apply_living_doc_updates(
+        self,
+        path: str,
+        approved_patch_ids: list,
+        actor: str,
+        docs_path: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Apply approved patches to the living-docs directory.
+
+        Only patch IDs produced by a recent docs.propose_living_doc_updates
+        call in this session are accepted. Writes are recorded in an audit log.
+        """
+        repo = Path(path)
+        dp = discover_docs_path(repo, docs_path)
+        if dp is None:
+            # Create a default docs dir if none exists
+            dp = repo / "docs"
+            dp.mkdir(parents=True, exist_ok=True)
+
+        results = apply_patches(
+            docs_path=dp,
+            approved_patch_ids=approved_patch_ids,
+            actor=actor,
+            pending_patches=self._pending_patches,
+        )
+        return {"apply_results": results}
+
+    def docs_verify_living_docs(
+        self,
+        path: str,
+        report_id: Optional[str] = None,
+        docs_path: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Verify that previously surfaced doc gaps are now resolved.
+
+        Re-runs gap detection and compares against the gaps stored from the
+        last docs.review_living_docs call in this session.
+        """
+        repo = Path(path)
+        dp = discover_docs_path(repo, docs_path)
+
+        report_data: Optional[Dict[str, Any]] = None
+        if report_id:
+            try:
+                rp = self._resolve_report_path(report_id)
+                report_data = _normalize_report_data(_read_report_json(rp))
+            except (FileNotFoundError, KeyError, ValueError):
+                pass
+
+        if not self._last_gaps:
+            return {
+                "resolved_gap_ids": [],
+                "remaining_gaps": [],
+                "total_original": 0,
+                "total_resolved": 0,
+                "note": "No gaps in session — run docs.review_living_docs first",
+            }
+
+        return verify_gaps(
+            repo_path=repo,
+            docs_path=dp or (repo / "docs"),
+            original_gaps=self._last_gaps,
+            report_data=report_data,
+        )
+
 mcp_server = MCPServer()
+

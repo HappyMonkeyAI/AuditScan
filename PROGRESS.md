@@ -1,8 +1,8 @@
 # AuditScan MVP — Progress Tracker
 
-**Last synced:** 2026-05-30 T-019 COMPLETE — **MVP COMPLETE (21/21)**
-**Total tasks:** 21 MVP + 5 Roadmap
-**Completed:** 21 | **In Progress:** 0 | **Pending:** 0
+**Last synced:** 2026-06-01 Phase 2 COMPLETE — **All Roadmap Items Done**
+**Total tasks:** 21 MVP + 5 Roadmap Phase 1.5 + 5 Roadmap Phase 2
+**Completed:** 21 MVP + 2 Phase-1.5 + 5 Phase-2 | **In Progress:** 0 | **Pending:** Phase 3 items already complete
 
 ---
 
@@ -26,6 +26,25 @@
 ---
 
 ## ✅ Completed
+
+### R-010..R-014 — Phase 2 Living Documentation Feedback Loop [COMPLETED 2026-06-01]
+- Added `repo_audit_scan/living_docs.py` (414 lines): `DocGap` and `DocPatch` dataclasses, living-docs discovery (`docs/`, `living_docs/` etc.), gap detection (contradicted/stale/missing), patch generation with stable SHA-256 fingerprints, gated patch application with audit log, and gap verification.
+- Wired 4 MCP tools into `mcp_server.py`: `docs.review_living_docs`, `docs.propose_living_doc_updates`, `docs.apply_living_doc_updates`, `docs.verify_living_docs`. Session-level `_pending_patches` cache enforces that `apply` only accepts IDs from the current `propose` session.
+- Safety model: only `apply` writes files; requires explicit `approved_patch_ids` list; rejects any patch ID not in the session cache; records actor + timestamp + fingerprint in `{docs_path}/.audit_log.jsonl`.
+- Added `repo_audit_scan/tests/test_living_docs.py` (25 tests) covering all 5 Phase 2 ACs: AC-P2-001 (contradicted gap from auth docs + findings), AC-P2-002 (propose read-only), AC-P2-003 (apply rejects foreign patch IDs), AC-P2-004 (verify resolves after edit), AC-P2-005 (audit log completeness).
+- Verification: **184 passed**, 0 failed across full test suite.
+
+
+### R-001 + R-002 — C#/.NET and Docker adapter full MVP coverage [COMPLETED 2026-06-01]
+- Added regex checks to `csharp-001` (connection string with `Password=`) and `csharp-002` (hardcoded password literals) — both previously had empty `checks: []`.
+- Added 6 new C# rules (`csharp-003` through `csharp-008`): SQL raw execution via `ExecuteSqlRaw`/`FromSqlRaw`, SQL string interpolation, JWT `ValidateLifetime = false`, CORS `AllowAnyOrigin()`, developer exception page without `IsDevelopment()` guard, missing `[ValidateAntiForgeryToken]` on POST endpoints.
+- Added 3 new Docker rules (`docker-003` through `docker-005`): exposed sensitive ports (22/23/3306/5432/27017/6379/1521), `ADD` instruction instead of `COPY`, mutable/`:latest` base image tag.
+- Total rules: 124 → **133** (8 C# + 5 Docker, up from 2 seed rules each with empty checks).
+- Added fixtures `tests/fixtures/csharp_app/vulnerable.cs` + `safe.cs` and updated `tests/fixtures/docker_app/vulnerable.Dockerfile` + `safe.Dockerfile` to cover all new detectors.
+- Added `TestCSharpAdapterDepth` (5 tests) and `TestDockerAdapterDepth` (4 tests); updated `TestDockerAdapter` assertion to cover all 5 docker rules.
+- Fixed `re.MULTILINE` flag missing from `LanguageAdapter.extract_evidence` — `^`-anchored patterns (used by all CI/CD and new Docker rules) now match correctly across multi-line file content.
+- Verification: **159 passed**, 0 failed across full test suite.
+
 
 ### T-019 - Fixture repositories + end-to-end scan integration [COMPLETED 2026-05-30]
 - Added repo-shaped fixtures: `tests/fixtures/generic_clean_repo/` (clean polyglot — Python, JS, pinned workflow) and `tests/fixtures/mixed_vulnerable_repo/` (vulnerabilities across all MVP adapters with correct paths: `.github/workflows/insecure.yml`, `wp-content/plugins/demo/plugin.php`, `app.py`, `server.js`).

@@ -167,15 +167,15 @@ Tracks:
 ## 3. Roadmap (Phase 1.5 + Phase 2 — out of MVP scope)
 
 ### Phase 1.5 — C#/.NET and Docker adapter completion
-- [ ] **R-001 — C#/.NET adapter (full MVP coverage)**
-- [ ] **R-002 — Docker adapter (full MVP coverage)**
+- [x] **R-001 — C#/.NET adapter (full MVP coverage)** — COMPLETE (2026-06-01)
+- [x] **R-002 — Docker adapter (full MVP coverage)** — COMPLETE (2026-06-01)
 
 ### Phase 2 — Living Documentation Feedback Loop
-- [ ] **R-010 — docs.review_living_docs**
-- [ ] **R-011 — docs.propose_living_doc_updates**
-- [ ] **R-012 — docs.apply_living_doc_updates**
-- [ ] **R-013 — docs.verify_living_docs**
-- [ ] **R-014 — Phase 2 ACs**
+- [x] **R-010 — docs.review_living_docs**
+- [x] **R-011 — docs.propose_living_doc_updates**
+- [x] **R-012 — docs.apply_living_doc_updates**
+- [x] **R-013 — docs.verify_living_docs**
+- [x] **R-014 — Phase 2 ACs**
 
 ### Phase 3 — Adversarial Assurance Loop
 - [x] **R-020 — adversarial.review_finding MCP tool contract and schemas**

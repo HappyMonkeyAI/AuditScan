@@ -15,6 +15,7 @@ from repo_audit_scan.adapters_final import (
     CSharpAdapter,
     PhpAdapter,
     CICDAdapter,
+    DockerAdapter,
     ScanContext,
 )
 from repo_audit_scan.adapter_registry import (
@@ -113,6 +114,15 @@ class TestLanguageAdapter:
         assert adapter.detect_language("Controller.cs") is True
         assert adapter.detect_language("app.java") is False
 
+    def test_docker_adapter_detects_docker_files(self):
+        """Docker adapter should detect Dockerfiles and compose files."""
+        adapter = DockerAdapter()
+        assert adapter.detect_language("Dockerfile") is True
+        assert adapter.detect_language("Dockerfile.prod") is True
+        assert adapter.detect_language("deploy/docker-compose.yml") is True
+        assert adapter.detect_language("compose.yaml") is True
+        assert adapter.detect_language("app.py") is False
+
 
 class TestAdapterSupportsRule:
     """Tests for rule support detection."""
@@ -164,6 +174,23 @@ class TestAdapterSupportsRule:
             severity=Severity.HIGH,
         )
         assert adapter.supports_rule(rule) is False
+
+    def test_non_docker_adapters_exclude_docker_rules(self):
+        """Default-deny guard: docker-* rules are docker-adapter only."""
+        docker_rule = Rule(
+            rule_id="docker-001",
+            category="secrets",
+            title="Secrets in Dockerfile",
+            description="Detects hardcoded secrets in Dockerfile ENV/ARG assignments",
+            severity=Severity.CRITICAL,
+        )
+        assert PythonAdapter().supports_rule(docker_rule) is False
+        assert JavaScriptAdapter().supports_rule(docker_rule) is False
+        assert JavaAdapter().supports_rule(docker_rule) is False
+        assert CSharpAdapter().supports_rule(docker_rule) is False
+        assert PhpAdapter().supports_rule(docker_rule) is False
+        assert CICDAdapter().supports_rule(docker_rule) is False
+        assert DockerAdapter().supports_rule(docker_rule) is True
 
 
 class TestAdapterScan:
@@ -457,6 +484,12 @@ CICD_FIXTURE_DIR = (
     / "fixtures"
     / "cicd_github_actions"
 )
+DOCKER_FIXTURE_DIR = (
+    Path(__file__).resolve().parents[2]
+    / "tests"
+    / "fixtures"
+    / "docker_app"
+)
 
 _RULES_FILE = (
     Path(__file__).resolve().parents[2]
@@ -506,7 +539,7 @@ class TestCICDAdapter:
         assert registry.resolve_language(".github/workflows/ci.yml") == "ci-cd"
         adapter = registry.resolve_adapter("Jenkinsfile")
         assert adapter is not None and adapter.language == "ci-cd"
-        assert registry.count_adapters() == 6
+        assert registry.count_adapters() == 7
         assert "ci-cd" in registry.supported_languages()
 
     def _cicd_rules(self):
@@ -688,6 +721,48 @@ class TestExtractEvidence:
         assert "line2" in evidence[0].code_snippet
         assert "api_key" in evidence[0].code_snippet
         assert "line4" in evidence[0].code_snippet
+
+
+class TestDockerAdapter:
+    """Tests for Docker adapter and docker rule coverage (R-002)."""
+
+    def _docker_rules(self):
+        reg = RuleRegistry()
+        reg.load_from_file(str(_RULES_FILE))
+        return [r for r in reg.list_all() if r.rule_id.startswith("docker-")]
+
+    def test_docker_adapter_properties(self):
+        adapter = DockerAdapter()
+        assert adapter.language == "docker"
+        assert "docker" in adapter.supported_frameworks
+
+    def test_registry_resolves_docker_files(self, registry):
+        assert registry.resolve_language("Dockerfile") == "docker"
+        assert registry.resolve_language("docker-compose.yml") == "docker"
+        adapter = registry.resolve_adapter("Dockerfile")
+        assert adapter is not None and adapter.language == "docker"
+
+    def test_vulnerable_dockerfile_triggers_rules(self):
+        adapter = DockerAdapter()
+        content = (DOCKER_FIXTURE_DIR / "vulnerable.Dockerfile").read_text()
+        ctx = ScanContext(file_path="Dockerfile", file_content=content, language="docker")
+        fired = {
+            res.rule_id
+            for rule in self._docker_rules()
+            for res in adapter.scan(ctx, rule)
+        }
+        assert {"docker-001", "docker-002", "docker-003", "docker-004", "docker-005"}.issubset(fired)
+
+    def test_safe_dockerfile_is_clean(self):
+        adapter = DockerAdapter()
+        content = (DOCKER_FIXTURE_DIR / "safe.Dockerfile").read_text()
+        ctx = ScanContext(file_path="Dockerfile", file_content=content, language="docker")
+        fired = [
+            res.rule_id
+            for rule in self._docker_rules()
+            for res in adapter.scan(ctx, rule)
+        ]
+        assert fired == []
 
 
 class TestAdapterRegistry:
@@ -899,3 +974,124 @@ class TestIntegration:
         adapter = registry.resolve_adapter("README.md")
 
         assert adapter is None  # Markdown not supported
+
+
+# ---------------------------------------------------------------------------
+# Fixture dir constants for Phase 1.5 adapters
+# ---------------------------------------------------------------------------
+
+CS_FIXTURE_DIR = (
+    Path(__file__).resolve().parents[2]
+    / "tests"
+    / "fixtures"
+    / "csharp_app"
+)
+
+
+class TestCSharpAdapterDepth:
+    """Full MVP rule coverage for the C#/.NET adapter (R-001).
+
+    Verifies all eight csharp-* detectors fire on the vulnerable fixture
+    and none fire on the safe fixture.
+    """
+
+    NEW_IDS = [
+        "csharp-001",
+        "csharp-002",
+        "csharp-003",
+        "csharp-004",
+        "csharp-005",
+        "csharp-006",
+        "csharp-007",
+        "csharp-008",
+    ]
+
+    def _fire(self, filename):
+        adapter = CSharpAdapter()
+        content = (CS_FIXTURE_DIR / filename).read_text()
+        ctx = ScanContext(
+            file_path=f"csharp_app/{filename}",
+            file_content=content,
+            language="csharp",
+        )
+        fired = set()
+        for rule in _rules_with_ids(self.NEW_IDS):
+            for res in adapter.scan(ctx, rule):
+                fired.add(res.rule_id)
+        return fired
+
+    def test_vulnerable_cs_triggers_all_detectors(self):
+        fired = self._fire("vulnerable.cs")
+        missing = set(self.NEW_IDS) - fired
+        assert not missing, f"Rules did not fire: {missing}"
+
+    def test_safe_cs_produces_no_findings(self):
+        fired = self._fire("safe.cs")
+        assert fired == set(), f"False positives on safe.cs: {fired}"
+
+    def test_csharp_rules_excluded_from_python_adapter(self):
+        cs_rule = next(r for r in _rules_with_ids(["csharp-003"]))
+        assert PythonAdapter().supports_rule(cs_rule) is False
+        assert CSharpAdapter().supports_rule(cs_rule) is True
+
+    def test_csharp_rules_excluded_from_js_adapter(self):
+        cs_rule = next(r for r in _rules_with_ids(["csharp-005"]))
+        assert JavaScriptAdapter().supports_rule(cs_rule) is False
+        assert CSharpAdapter().supports_rule(cs_rule) is True
+
+    def test_csharp_adapter_detects_cs_extension(self):
+        adapter = CSharpAdapter()
+        assert adapter.detect_language("Program.cs") is True
+        assert adapter.detect_language("app.py") is False
+        assert adapter.detect_language("index.js") is False
+
+
+class TestDockerAdapterDepth:
+    """Full MVP rule coverage for the Docker adapter (R-002).
+
+    Verifies all five docker-* detectors fire on the vulnerable fixture
+    and none fire on the safe fixture.
+    """
+
+    ALL_DOCKER_IDS = [
+        "docker-001",
+        "docker-002",
+        "docker-003",
+        "docker-004",
+        "docker-005",
+    ]
+
+    def _fire(self, filename):
+        adapter = DockerAdapter()
+        content = (DOCKER_FIXTURE_DIR / filename).read_text()
+        ctx = ScanContext(
+            file_path="Dockerfile",
+            file_content=content,
+            language="docker",
+        )
+        fired = set()
+        for rule in _rules_with_ids(self.ALL_DOCKER_IDS):
+            for res in adapter.scan(ctx, rule):
+                fired.add(res.rule_id)
+        return fired
+
+    def test_vulnerable_dockerfile_triggers_all_detectors(self):
+        fired = self._fire("vulnerable.Dockerfile")
+        missing = set(self.ALL_DOCKER_IDS) - fired
+        assert not missing, f"Rules did not fire: {missing}"
+
+    def test_safe_dockerfile_produces_no_findings(self):
+        fired = self._fire("safe.Dockerfile")
+        assert fired == set(), f"False positives on safe.Dockerfile: {fired}"
+
+    def test_docker_rules_excluded_from_python_adapter(self):
+        dk_rule = next(r for r in _rules_with_ids(["docker-003"]))
+        assert PythonAdapter().supports_rule(dk_rule) is False
+        assert DockerAdapter().supports_rule(dk_rule) is True
+
+    def test_docker_adapter_detects_dockerfile_variants(self):
+        adapter = DockerAdapter()
+        assert adapter.detect_language("Dockerfile") is True
+        assert adapter.detect_language("Dockerfile.prod") is True
+        assert adapter.detect_language("docker-compose.yml") is True
+        assert adapter.detect_language("app.py") is False

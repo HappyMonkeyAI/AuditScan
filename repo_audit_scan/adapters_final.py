@@ -66,7 +66,7 @@ class LanguageAdapter(ABC):
         evidence_list = []
         lines = file_content.split('\n')
 
-        for match in re.finditer(pattern, file_content):
+        for match in re.finditer(pattern, file_content, re.MULTILINE):
             line_num = file_content[:match.start()].count('\n') + 1
             line_start = file_content.rfind('\n', 0, match.start()) + 1
             col_num = match.start() - line_start
@@ -148,11 +148,13 @@ class PythonAdapter(LanguageAdapter):
 
     def supports_rule(self, rule: Rule) -> bool:
         if rule.description:
-            language_markers = ['java', 'javascript', 'typescript', 'c#', 'csharp', 'go', 'rust', 'swift', 'php']
+            language_markers = ['java', 'javascript', 'typescript', 'c#', 'csharp', 'go', 'rust', 'swift', 'php', 'docker', 'ci/cd', 'ci-cd']
             desc_lower = rule.description.lower()
             for marker in language_markers:
                 if marker in desc_lower and 'python' not in desc_lower:
                     return False
+        if (rule.rule_id or "").lower().startswith(("docker-", "cicd-", "ci-")):
+            return False
         return True
 
     def scan(self, context: ScanContext, rule: Rule) -> List[RuleResult]:
@@ -245,11 +247,14 @@ class PhpAdapter(LanguageAdapter):
             language_markers = [
                 "python", "javascript", "typescript", "java",
                 "c#", "csharp", "go", "rust", "swift",
+                "docker", "ci/cd", "ci-cd",
             ]
             desc_lower = rule.description.lower()
             for marker in language_markers:
                 if marker in desc_lower and "php" not in desc_lower:
                     return False
+        if (rule.rule_id or "").lower().startswith(("docker-", "cicd-", "ci-")):
+            return False
         return True
 
     def scan(self, context: ScanContext, rule: Rule) -> List[RuleResult]:
@@ -365,11 +370,13 @@ class JavaScriptAdapter(LanguageAdapter):
 
     def supports_rule(self, rule: Rule) -> bool:
         if rule.description:
-            language_markers = ['python', 'java', 'c#', 'csharp', 'go', 'rust', 'php']
+            language_markers = ['python', 'java', 'c#', 'csharp', 'go', 'rust', 'php', 'docker', 'ci/cd', 'ci-cd']
             desc_lower = rule.description.lower()
             for marker in language_markers:
                 if marker in desc_lower and 'javascript' not in desc_lower and 'typescript' not in desc_lower:
                     return False
+        if (rule.rule_id or "").lower().startswith(("docker-", "cicd-", "ci-")):
+            return False
         return True
 
     def scan(self, context: ScanContext, rule: Rule) -> List[RuleResult]:
@@ -432,11 +439,13 @@ class JavaAdapter(LanguageAdapter):
 
     def supports_rule(self, rule: Rule) -> bool:
         if rule.description:
-            language_markers = ['python', 'javascript', 'c#', 'csharp', 'go', 'rust', 'php']
+            language_markers = ['python', 'javascript', 'c#', 'csharp', 'go', 'rust', 'php', 'docker', 'ci/cd', 'ci-cd']
             desc_lower = rule.description.lower()
             for marker in language_markers:
                 if marker in desc_lower and 'java' not in desc_lower:
                     return False
+        if (rule.rule_id or "").lower().startswith(("docker-", "cicd-", "ci-")):
+            return False
         return True
 
     def scan(self, context: ScanContext, rule: Rule) -> List[RuleResult]:
@@ -499,11 +508,13 @@ class CSharpAdapter(LanguageAdapter):
 
     def supports_rule(self, rule: Rule) -> bool:
         if rule.description:
-            language_markers = ['python', 'javascript', 'java', 'go', 'rust', 'php']
+            language_markers = ['python', 'javascript', 'java', 'go', 'rust', 'php', 'docker', 'ci/cd', 'ci-cd']
             desc_lower = rule.description.lower()
             for marker in language_markers:
                 if marker in desc_lower and 'c#' not in desc_lower and 'csharp' not in desc_lower:
                     return False
+        if (rule.rule_id or "").lower().startswith(("docker-", "cicd-", "ci-")):
+            return False
         return True
 
     def scan(self, context: ScanContext, rule: Rule) -> List[RuleResult]:
@@ -624,3 +635,71 @@ class CICDAdapter(LanguageAdapter):
     def scan(self, context: ScanContext, rule: Rule) -> List[RuleResult]:
         """Scan a CI/CD pipeline file using the rule's regex checks."""
         return _scan_regex_checks(self, context, rule)
+
+
+class DockerAdapter(LanguageAdapter):
+    """Adapter for Dockerfiles and docker-compose manifests."""
+
+    _NON_ROOT_USER = re.compile(r"^\s*USER\s+([^\s#]+)", re.IGNORECASE | re.MULTILINE)
+
+    @property
+    def language(self) -> str:
+        return "docker"
+
+    @property
+    def supported_frameworks(self) -> List[str]:
+        return ["docker", "docker-compose"]
+
+    def detect_language(self, file_path: str) -> bool:
+        path = file_path.replace("\\", "/")
+        name = path.rsplit("/", 1)[-1].lower()
+        if name == "dockerfile" or name.startswith("dockerfile."):
+            return True
+        if name in {"docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"}:
+            return True
+        return False
+
+    def supports_rule(self, rule: Rule) -> bool:
+        rule_id = (rule.rule_id or "").lower()
+        category = (rule.category or "").lower()
+        return (
+            rule_id.startswith("docker-")
+            or category in ("container-security", "deployment", "configuration")
+            or "docker" in (rule.description or "").lower()
+        )
+
+    def scan(self, context: ScanContext, rule: Rule) -> List[RuleResult]:
+        # docker-002 currently has no regex check payload in the bundled rule
+        # set. Implement this detector in adapter logic until rules are fully
+        # externalized with typed check primitives.
+        if (rule.rule_id or "").lower() == "docker-002":
+            return self._scan_non_root_user(context, rule)
+        return _scan_regex_checks(self, context, rule)
+
+    def _scan_non_root_user(self, context: ScanContext, rule: Rule) -> List[RuleResult]:
+        content = context.file_content
+        user_match = self._NON_ROOT_USER.search(content)
+        if user_match:
+            user_value = user_match.group(1).strip().strip("'\"")
+            if user_value and user_value.lower() not in {"root", "0"}:
+                return []
+
+        evidence = Evidence(
+            file_path=context.file_path,
+            line_number=1,
+            column_number=0,
+            code_snippet=context.file_content.splitlines()[0] if context.file_content.splitlines() else "",
+            context="Container definition lacks explicit non-root USER directive",
+        )
+        return [
+            RuleResult(
+                rule_id=rule.rule_id,
+                rule_title=rule.title,
+                category=rule.category,
+                severity=rule.severity,
+                confidence=Confidence.MEDIUM,
+                evidence=[evidence],
+                remediation_guidance=rule.remediation_guidance or "",
+
+            )
+        ]

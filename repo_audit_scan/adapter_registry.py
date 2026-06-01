@@ -18,6 +18,7 @@ from repo_audit_scan.adapters_final import (
     CSharpAdapter,
     PhpAdapter,
     CICDAdapter,
+    DockerAdapter,
 )
 
 
@@ -43,6 +44,7 @@ class AdapterRegistry:
             CSharpAdapter(),
             PhpAdapter(),
             CICDAdapter(),
+            DockerAdapter(),
         ]
 
         for adapter in builtin_adapters:
