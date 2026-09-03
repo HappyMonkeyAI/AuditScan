@@ -44,6 +44,7 @@ repo_audit_scan = ["py.typed"]
 
 [project.scripts]
 repo-audit-scan = "repo_audit_scan.cli:main"
+auditscan-mcp = "repo_audit_scan.mcp_stdio:main"
 
 [tool.pytest.ini_options]
 testpaths = ["repo_audit_scan/tests"]
