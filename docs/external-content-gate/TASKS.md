@@ -49,7 +49,7 @@ Done when:
 
 ### ECG-003 — Record threat model and integration ADRs
 
-Status: proposed
+Status: complete (2026-09-04)
 Depends on: ECG-001
 Files likely to change:
 - `docs/adr/` (new or existing project convention)

@@ -41,6 +41,12 @@ The extension must not change normal local repository scanning behaviour. New re
 - Treat SARIF as a Phase 3 integration format, preserving the existing JSON and Markdown reports.
 - Use constrained semantic review after deterministic checks, never in front of them.
 
+Detailed decisions:
+
+- [`ADR-ECG-001`](../adr/ADR-ECG-001-quarantine-boundary.md) — quarantine boundary.
+- [`ADR-ECG-002`](../adr/ADR-ECG-002-constrained-semantic-review.md) — constrained semantic review.
+- [`ADR-ECG-003`](../adr/ADR-ECG-003-execution-promotion-policy.md) — execution and promotion policy.
+
 ## Required MCP routing
 
 | Intent | Preferred capability | State |
