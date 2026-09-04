@@ -138,6 +138,32 @@ def test_scan_command_supports_json_without_writes(tmp_path, capsys):
     assert "report_paths" not in payload
 
 
+def test_external_repo_profile_returns_blocked_policy_for_hostile_fixture(capsys):
+    fixture = Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "external_content" / "hostile_repo"
+    code = main(["scan", str(fixture), "--profile", "external_repo", "--format", "json", "--no-write-reports"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert code == 0
+    assert payload["assessment"]["profile"] == "external_repo"
+    assert payload["assessment"]["disposition"] == "block"
+    assert payload["assessment"]["policy"] == {
+        "read_source": True,
+        "install": False,
+        "execute": False,
+        "register_mcp": False,
+        "write_memory": False,
+    }
+
+
+def test_external_repo_profile_allows_benign_threejs_fixture(capsys):
+    fixture = Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "external_content" / "benign_threejs_repo"
+    code = main(["scan", str(fixture), "--profile", "external_repo", "--format", "json", "--no-write-reports"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert code == 0
+    assert payload["assessment"]["disposition"] == "allow_review"
+
+
 def test_scan_command_enrichment_flag_is_fail_open(tmp_path, capsys, monkeypatch):
     """Dependency enrichment flag should not fail scan when network enrichment errors."""
     repo = tmp_path / "repo"

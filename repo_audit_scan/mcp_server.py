@@ -134,6 +134,7 @@ class MCPServer:
         output_root: str = "scan-reports",
         enrich_dependencies: bool = False,
         fail_open_on_enrichment_error: bool = True,
+        profile: str = "universal",
     ) -> Dict[str, Any]:
         """Scan a repository and optionally write report artifacts."""
         repo_path = Path(path).resolve()
@@ -145,6 +146,7 @@ class MCPServer:
             registry,
             enrich_dependencies=enrich_dependencies,
             fail_open_on_enrichment_error=fail_open_on_enrichment_error,
+            profile=profile,
         )
         # Keep report id deterministic for this command call path.
         report.report_id = _new_report_id()
@@ -155,6 +157,8 @@ class MCPServer:
             "findings": len(report.findings),
             "mirror_to_target_repo": mirror_to_target_repo,
         }
+        if report.assessment:
+            response["assessment"] = report.assessment.to_dict()
         if write_reports:
             out_dir = Path(output_root).resolve() / report.report_id
             workspace_paths = ReportArtifactWriter().write(report, out_dir)

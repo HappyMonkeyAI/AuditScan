@@ -84,7 +84,7 @@ Done when:
 
 ### ECG-011 — Add `external_repo` staged-path profile
 
-Status: proposed
+Status: complete (2026-09-04)
 Depends on: ECG-001, ECG-010
 Files likely to change:
 - `repo_audit_scan/cli.py`

@@ -16,7 +16,16 @@ from repo_audit_scan.adapters_final import ScanContext
 from repo_audit_scan.dependency_enrichment import scan_dependencies
 from repo_audit_scan.inventory import FilesystemWalker
 from repo_audit_scan.logging_setup import setup_logging
-from repo_audit_scan.models import Finding, Report, ScanMetadata
+from repo_audit_scan.models import (
+    AssessmentDisposition,
+    AssessmentStatus,
+    ExternalAssessment,
+    ExternalCheck,
+    ExternalTarget,
+    Finding,
+    Report,
+    ScanMetadata,
+)
 from repo_audit_scan.reporting import ReportArtifactWriter
 from repo_audit_scan.rules import Rule, RuleRegistry
 from repo_audit_scan.scoring import CompromiseModeClassifier, IANScorer
@@ -46,7 +55,10 @@ def _scan_repository(
     registry: RuleRegistry,
     enrich_dependencies: bool = False,
     fail_open_on_enrichment_error: bool = True,
+    profile: str = "universal",
 ) -> Report:
+    if profile not in {"universal", "external_repo"}:
+        raise ValueError(f"Unsupported scan profile: {profile}")
     adapters = AdapterRegistry()
     inventory = FilesystemWalker(str(repo_path)).walk()
 
@@ -69,7 +81,10 @@ def _scan_repository(
             file_content=content,
             language=adapter.language,
         )
-        for rule in registry.list_all():
+        rules = registry.list_all()
+        if profile == "external_repo" and adapter.language != "external-content":
+            rules = [rule for rule in rules if not rule.rule_id.startswith("ecg-")]
+        for rule in rules:
             if adapter.supports_rule(rule):
                 rule_results.extend(adapter.scan(context, rule))
 
@@ -128,11 +143,23 @@ def _scan_repository(
         f" Dependency scan: {dependency_metadata['packages_scanned']} packages, "
         f"mode={dependency_metadata['mode']}."
     )
+    assessment = None
+    if profile == "external_repo":
+        external_findings = [f for f in findings if f.rule_id.startswith("ecg-")]
+        blocked = any(f.severity.value in {"critical", "high"} for f in external_findings)
+        assessment = ExternalAssessment(
+            target=ExternalTarget(kind="staged_path", origin=str(repo_path)),
+            profile=profile,
+            status=AssessmentStatus.BLOCKED if blocked else AssessmentStatus.COMPLETE,
+            disposition=AssessmentDisposition.BLOCK if blocked else AssessmentDisposition.ALLOW_REVIEW,
+            checks=[ExternalCheck("deterministic_rules", "completed")],
+        )
     return Report(
         report_id=_new_report_id(),
         metadata=metadata,
         findings=findings,
         summary=f"Scanned {inventory.total_files} files with {len(findings)} findings.{enrichment_note}",
+        assessment=assessment,
     )
 
 
@@ -307,6 +334,7 @@ def _handle_scan(args: argparse.Namespace) -> int:
         registry,
         enrich_dependencies=args.enrich_dependencies,
         fail_open_on_enrichment_error=not args.fail_closed_enrichment,
+        profile=args.profile,
     )
 
     response: Dict[str, Any] = {
@@ -314,6 +342,8 @@ def _handle_scan(args: argparse.Namespace) -> int:
         "repository_path": str(repo_path),
         "findings": len(report.findings),
     }
+    if report.assessment:
+        response["assessment"] = report.assessment.to_dict()
 
     if args.write_reports:
         output_root = Path(args.output_root).resolve()
@@ -391,6 +421,7 @@ def build_parser() -> argparse.ArgumentParser:
     scan_parser.add_argument("path", help="Repository path to scan")
     scan_parser.add_argument("--output-root", default="scan-reports", help="Workspace report root directory")
     scan_parser.add_argument("--format", choices=["text", "json"], default="text")
+    scan_parser.add_argument("--profile", choices=["universal", "external_repo"], default="universal")
     scan_parser.add_argument("--write-reports", dest="write_reports", action="store_true", default=True)
     scan_parser.add_argument("--no-write-reports", dest="write_reports", action="store_false")
     scan_parser.add_argument(
