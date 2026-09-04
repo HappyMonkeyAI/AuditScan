@@ -1,0 +1,35 @@
+name: External Content Gate
+on:
+  pull_request:
+  push:
+permissions:
+  contents: read
+  security-events: write
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install uv
+        run: python -m pip install uv
+      - name: Run external-content audit
+        run: |
+          mkdir -p audit-artifacts
+          uv run --extra dev repo-audit-scan scan . --profile external_repo --format json --output-root audit-artifacts > audit-artifacts/result.json
+      - name: Enforce assessment disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path("audit-artifacts/result.json").read_text())
+          disposition = result.get("assessment", {}).get("disposition")
+          if disposition == "block":
+              raise SystemExit("external-content assessment is blocked")
+          if disposition == "needs_human_review":
+              raise SystemExit("external-content assessment needs human review")
+          PY
+      - uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        if: always()
+        with:
+          name: external-content-audit
+          path: audit-artifacts/
