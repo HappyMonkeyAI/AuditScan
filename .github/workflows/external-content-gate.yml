@@ -21,12 +21,9 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
+          from repo_audit_scan.ci_policy import enforce_disposition
           result = json.loads(Path("audit-artifacts/result.json").read_text())
-          disposition = result.get("assessment", {}).get("disposition")
-          if disposition == "block":
-              raise SystemExit("external-content assessment is blocked")
-          if disposition == "needs_human_review":
-              raise SystemExit("external-content assessment needs human review")
+          enforce_disposition(result.get("assessment", {}).get("disposition"))
           PY
       - uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         if: always()
