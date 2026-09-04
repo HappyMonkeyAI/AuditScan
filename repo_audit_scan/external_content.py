@@ -19,11 +19,22 @@ _MAX_OUTPUT = 1_000_000
 _TIMEOUT_SECONDS = 30
 
 
+def _engine_metadata(status: str, detail: str) -> dict[str, Any]:
+    """Return provenance without exposing the configured command."""
+    return {
+        "status": status,
+        "detail": detail,
+        "scanner": "repo-security-scan",
+        "revision": os.environ.get("REPO_SECURITY_SCAN_REVISION", "unknown")[:100],
+        "version": os.environ.get("REPO_SECURITY_SCAN_VERSION", "unknown")[:100],
+    }
+
+
 def run_repo_security_scan(repo_path: Path) -> tuple[list[RuleResult], dict[str, Any]]:
     """Run configured scanner, returning findings and explicit engine metadata."""
     command = os.environ.get("REPO_SECURITY_SCAN_COMMAND", "").strip()
     if not command:
-        return [], {"status": "unavailable", "detail": "REPO_SECURITY_SCAN_COMMAND is not configured"}
+        return [], _engine_metadata("unavailable", "REPO_SECURITY_SCAN_COMMAND is not configured")
     argv = shlex.split(command, posix=False)
     argv.append(str(repo_path))
     try:
@@ -37,7 +48,7 @@ def run_repo_security_scan(repo_path: Path) -> tuple[list[RuleResult], dict[str,
             env={"PATH": os.environ.get("PATH", "")},
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
-        return [], {"status": "failed", "detail": type(exc).__name__}
+        return [], _engine_metadata("failed", type(exc).__name__)
     raw = completed.stdout[:_MAX_OUTPUT]
     try:
         payload = json.loads(raw) if raw else {}
@@ -55,8 +66,8 @@ def run_repo_security_scan(repo_path: Path) -> tuple[list[RuleResult], dict[str,
                 remediation_guidance="Review the external scanner report and rotate any exposed credentials.",
                 manual_confirmation_required=True,
             ) for _ in range(min(count, 100))]
-            return results, {"status": "completed", "detail": f"text output; {count} findings"}
-        return [], {"status": "failed", "detail": "scanner returned unrecognized output"}
+            return results, _engine_metadata("completed", f"text output; {count} findings")
+        return [], _engine_metadata("failed", "scanner returned unrecognized output")
     results: list[RuleResult] = []
     for item in payload.get("findings", []) if isinstance(payload, dict) else []:
         if not isinstance(item, dict):
@@ -73,4 +84,4 @@ def run_repo_security_scan(repo_path: Path) -> tuple[list[RuleResult], dict[str,
             remediation_guidance="Remove or rotate the exposed secret; verify the redacted finding manually.",
             manual_confirmation_required=True,
         ))
-    return results, {"status": "completed" if completed.returncode == 0 else "completed", "detail": f"exit={completed.returncode}"}
+    return results, _engine_metadata("completed", f"exit={completed.returncode}")
