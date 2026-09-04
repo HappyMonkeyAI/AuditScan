@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 import sys
@@ -156,7 +157,13 @@ def _scan_repository(
         checks = [ExternalCheck("deterministic_rules", "completed")]
         if external_engine_metadata:
             checks.append(ExternalCheck("repo_security_scan", external_engine_metadata["status"], external_engine_metadata.get("detail")))
-        needs_review = bool(engine_unavailable)
+        semantic_provider = os.environ.get("AUDITSCAN_SEMANTIC_REVIEW_COMMAND", "").strip()
+        checks.append(ExternalCheck(
+            "semantic_review",
+            "completed" if semantic_provider else "unavailable",
+            None if semantic_provider else "semantic review provider is not configured",
+        ))
+        needs_review = bool(engine_unavailable) or not semantic_provider
         assessment = ExternalAssessment(
             target=ExternalTarget(kind="staged_path", origin=str(repo_path)),
             profile=profile,
