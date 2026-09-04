@@ -150,7 +150,7 @@ def _scan_repository(
     )
     assessment = None
     if profile == "external_repo":
-        external_findings = [f for f in findings if f.rule_id.startswith("ecg-")]
+        external_findings = [f for f in findings if f.rule_id.startswith(("ecg-", "external-secret-"))]
         blocked = any(f.severity.value in {"critical", "high"} for f in external_findings)
         engine_unavailable = external_engine_metadata and external_engine_metadata["status"] != "completed"
         checks = [ExternalCheck("deterministic_rules", "completed")]

@@ -165,6 +165,20 @@ def test_external_repo_profile_allows_benign_threejs_fixture(capsys):
     assert payload["assessment"]["disposition"] == "needs_human_review"
 
 
+def test_external_repo_profile_blocks_external_secret_finding(tmp_path, capsys, monkeypatch):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    scanner = tmp_path / "scanner.py"
+    scanner.write_text("print('Scan complete: 1 unique finding(s) across 1 raw match(es).')", encoding="utf-8")
+    monkeypatch.setenv("REPO_SECURITY_SCAN_COMMAND", f"python {scanner}")
+    code = main(["scan", str(repo), "--profile", "external_repo", "--format", "json", "--no-write-reports"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert code == 0
+    assert payload["assessment"]["status"] == "blocked"
+    assert payload["assessment"]["disposition"] == "block"
+
+
 def test_scan_command_enrichment_flag_is_fail_open(tmp_path, capsys, monkeypatch):
     """Dependency enrichment flag should not fail scan when network enrichment errors."""
     repo = tmp_path / "repo"

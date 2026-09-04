@@ -1,5 +1,14 @@
-FROM python:3.12-slim
+FROM python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea
 WORKDIR /opt/auditscan
+ARG REPO_SECURITY_SCAN_REF=fa9a0d0244d1f6187bf0edf89d991a1e6a837405
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && git clone https://github.com/HappyMonkeyAI/repo-security-scan.git /opt/repo-security-scan \
+    && cd /opt/repo-security-scan \
+    && git checkout --detach "$REPO_SECURITY_SCAN_REF" \
+    && pip install --no-cache-dir pyyaml requests python-dotenv \
+    && rm -rf /var/lib/apt/lists/* /opt/repo-security-scan/.git
 COPY . /opt/auditscan
 RUN pip install --no-cache-dir .
+ENV REPO_SECURITY_SCAN_COMMAND="python /opt/repo-security-scan/main.py"
 ENTRYPOINT ["python", "-m", "repo_audit_scan.cli"]
