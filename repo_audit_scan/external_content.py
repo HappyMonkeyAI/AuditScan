@@ -9,6 +9,7 @@ import json
 import os
 import shlex
 import subprocess
+import re
 from pathlib import Path
 from typing import Any
 
@@ -41,7 +42,21 @@ def run_repo_security_scan(repo_path: Path) -> tuple[list[RuleResult], dict[str,
     try:
         payload = json.loads(raw) if raw else {}
     except json.JSONDecodeError:
-        return [], {"status": "failed", "detail": "scanner returned invalid JSON"}
+        match = re.search(r"Scan complete:\s+(\d+) unique finding", raw)
+        if match:
+            count = int(match.group(1))
+            results = [RuleResult(
+                rule_id="external-secret-scan",
+                rule_title="External secret scanner finding",
+                category="secrets",
+                severity=Severity.CRITICAL if completed.returncode == 1 else Severity.HIGH,
+                confidence=Confidence.MEDIUM,
+                evidence=[Evidence(file_path="[external-scanner]", code_snippet="[REDACTED]", context="untrusted scanner summary")],
+                remediation_guidance="Review the external scanner report and rotate any exposed credentials.",
+                manual_confirmation_required=True,
+            ) for _ in range(min(count, 100))]
+            return results, {"status": "completed", "detail": f"text output; {count} findings"}
+        return [], {"status": "failed", "detail": "scanner returned unrecognized output"}
     results: list[RuleResult] = []
     for item in payload.get("findings", []) if isinstance(payload, dict) else []:
         if not isinstance(item, dict):
