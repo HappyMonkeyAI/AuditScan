@@ -81,6 +81,7 @@ class JSONReportWriter:
                 "highest_ian_score": self._highest_ian_score(sorted_items),
             },
             "findings": [self._finding_to_dict(finding) for finding in sorted_items],
+            "assessment": report.assessment.to_dict() if report.assessment else None,
         }
 
     def to_json(self, report: Report) -> str:
@@ -165,6 +166,20 @@ class MarkdownReportWriter:
             lines.extend(["", report.summary])
 
         lines.extend(["", "## Findings", ""])
+        if report.assessment:
+            assessment = report.assessment
+            lines = lines[: -2] + [
+                "",
+                "## Assessment",
+                "",
+                f"- Profile: `{assessment.profile}`",
+                f"- Status: `{assessment.status.value}`",
+                f"- Disposition: `{assessment.disposition.value}`",
+                "- External content is untrusted data; operational actions remain denied.",
+                "",
+                "## Findings",
+                "",
+            ]
         if not sorted_items:
             lines.append("No findings were detected.")
             return "\n".join(lines).rstrip() + "\n"

@@ -29,6 +29,20 @@ class CompromiseMode(str, Enum):
     ASSUME_BREACH = "assume_breach"
 
 
+class AssessmentStatus(str, Enum):
+    """Overall completeness state of an external-content assessment."""
+    COMPLETE = "complete"
+    DEGRADED = "degraded"
+    BLOCKED = "blocked"
+
+
+class AssessmentDisposition(str, Enum):
+    """Policy disposition for externally sourced content."""
+    ALLOW_REVIEW = "allow_review"
+    NEEDS_HUMAN_REVIEW = "needs_human_review"
+    BLOCK = "block"
+
+
 @dataclass
 class Evidence:
     """Evidence snippet for a finding."""
@@ -143,12 +157,126 @@ class ScanMetadata:
 
 
 @dataclass
+class ExternalTarget:
+    """Origin and immutable identity of externally assessed content."""
+    kind: str
+    origin: str
+    resolved_ref: Optional[str] = None
+    content_digest: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ExternalTarget":
+        return cls(**data)
+
+
+@dataclass
+class ExternalCheck:
+    """Status of one required assessment component."""
+    name: str
+    status: str
+    detail: Optional[str] = None
+
+    VALID_STATUSES = frozenset({"completed", "skipped", "failed", "unavailable"})
+
+    def __post_init__(self) -> None:
+        if self.status not in self.VALID_STATUSES:
+            raise ValueError(f"Invalid external check status: {self.status}")
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ExternalCheck":
+        return cls(**data)
+
+
+@dataclass
+class AgentPolicy:
+    """Allowed downstream actions after assessing untrusted content."""
+    read_source: bool = True
+    install: bool = False
+    execute: bool = False
+    register_mcp: bool = False
+    write_memory: bool = False
+
+    def __post_init__(self) -> None:
+        if self.install or self.execute or self.register_mcp or self.write_memory:
+            raise ValueError("External content cannot grant operational or memory-write access")
+
+    def to_dict(self) -> Dict[str, bool]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "AgentPolicy":
+        return cls(**data)
+
+
+@dataclass
+class ExternalAssessment:
+    """Machine-readable assessment and policy handoff for external content."""
+    target: ExternalTarget
+    profile: str
+    status: AssessmentStatus
+    disposition: AssessmentDisposition
+    checks: List[ExternalCheck] = field(default_factory=list)
+    policy: AgentPolicy = field(default_factory=AgentPolicy)
+
+    def __post_init__(self) -> None:
+        self.status = AssessmentStatus(self.status)
+        self.disposition = AssessmentDisposition(self.disposition)
+        if self.disposition is not AssessmentDisposition.ALLOW_REVIEW and self.status is AssessmentStatus.COMPLETE:
+            raise ValueError("Only allow_review may be complete")
+        if self.status is AssessmentStatus.BLOCKED and self.disposition is not AssessmentDisposition.BLOCK:
+            raise ValueError("Blocked assessments must have block disposition")
+
+    @property
+    def checks_by_status(self) -> Dict[str, List[str]]:
+        grouped = {status: [] for status in ExternalCheck.VALID_STATUSES}
+        for check in self.checks:
+            grouped[check.status].append(check.name)
+        return grouped
+
+    def to_dict(self) -> Dict[str, Any]:
+        grouped = self.checks_by_status
+        return {
+            "target": self.target.to_dict(),
+            "profile": self.profile,
+            "status": self.status.value,
+            "disposition": self.disposition.value,
+            "checks": {
+                "completed": grouped["completed"],
+                "skipped": grouped["skipped"],
+                "failed": grouped["failed"],
+                "unavailable": grouped["unavailable"],
+            },
+            "check_details": [check.to_dict() for check in self.checks],
+            "policy": self.policy.to_dict(),
+            "untrusted_content": True,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ExternalAssessment":
+        return cls(
+            target=ExternalTarget.from_dict(data["target"]),
+            profile=data["profile"],
+            status=AssessmentStatus(data["status"]),
+            disposition=AssessmentDisposition(data["disposition"]),
+            checks=[ExternalCheck.from_dict(check) for check in data.get("check_details", [])],
+            policy=AgentPolicy.from_dict(data.get("policy", {})),
+        )
+
+
+@dataclass
 class Report:
     """Complete audit report."""
     report_id: str
     metadata: ScanMetadata
     findings: List[Finding] = field(default_factory=list)
     summary: Optional[str] = None
+    assessment: Optional[ExternalAssessment] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
@@ -157,6 +285,7 @@ class Report:
             "metadata": self.metadata.to_dict(),
             "findings": [f.to_dict() for f in self.findings],
             "summary": self.summary,
+            "assessment": self.assessment.to_dict() if self.assessment else None,
         }
 
     def to_json(self) -> str:
@@ -171,6 +300,7 @@ class Report:
             metadata=ScanMetadata.from_dict(data["metadata"]),
             findings=[Finding.from_dict(f) for f in data.get("findings", [])],
             summary=data.get("summary"),
+            assessment=ExternalAssessment.from_dict(data["assessment"]) if data.get("assessment") else None,
         )
 
     @classmethod
