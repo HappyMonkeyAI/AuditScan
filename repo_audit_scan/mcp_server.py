@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import json
 from pathlib import Path
+import tempfile
 from typing import Any, Callable, Dict, Optional
 
 from repo_audit_scan.cli import (
@@ -27,6 +28,8 @@ from repo_audit_scan.adversarial import (
 from repo_audit_scan.adversarial_prompts import get_prompt_pack
 from repo_audit_scan.adversarial_reporting import write_assurance_artifacts
 from repo_audit_scan.models import Report
+from repo_audit_scan.models import AssessmentDisposition, AssessmentStatus, ExternalAssessment, ExternalCheck, ExternalTarget
+from repo_audit_scan.external_fetch import fetch_external_text
 from repo_audit_scan.reporting import JSONReportWriter, ReportArtifactWriter
 from repo_audit_scan.triage import TriageArtifactWriter
 from repo_audit_scan.living_docs import (
@@ -75,6 +78,7 @@ class MCPServer:
         self.register_tool("server.get_health", self.get_health)
         self.register_tool("server.get_status", self.get_status)
         self.register_tool("scan_repository", self.scan_repository)
+        self.register_tool("inspect_external_link", self.inspect_external_link)
         self.register_tool("list_rules", self.list_rules)
         self.register_tool("get_finding", self.get_finding)
         self.register_tool("triage_report", self.triage_report)
@@ -176,6 +180,31 @@ class MCPServer:
             "error": None,
         }
         return response
+
+    def inspect_external_link(self, url: str, rules_path: Optional[str] = None) -> Dict[str, Any]:
+        """Fetch and statically inspect an HTTPS text link; never execute page content."""
+        fetched = fetch_external_text(url)
+        if fetched.status != "completed":
+            disposition = "block" if fetched.status == "blocked" else "needs_human_review"
+            status = AssessmentStatus.BLOCKED if disposition == "block" else AssessmentStatus.DEGRADED
+            assessment = ExternalAssessment(
+                target=ExternalTarget(kind="link", origin=url), profile="external_link",
+                status=status, disposition=AssessmentDisposition(disposition),
+                checks=[ExternalCheck("network_policy", fetched.status, fetched.reason)],
+            )
+            return {"url": url, "assessment": assessment.to_dict(), "content_retrieved": False}
+        with tempfile.TemporaryDirectory(prefix="auditscan-link-") as directory:
+            path = Path(directory) / "external.md"
+            path.write_text(fetched.content, encoding="utf-8")
+            report = _scan_repository(path.parent, _load_rules(rules_path), profile="external_repo")
+        blocked = any(f.severity.value in {"critical", "high"} and f.rule_id.startswith("ecg-") for f in report.findings)
+        assessment = ExternalAssessment(
+            target=ExternalTarget(kind="link", origin=url), profile="external_link",
+            status=AssessmentStatus.BLOCKED if blocked else AssessmentStatus.COMPLETE,
+            disposition=AssessmentDisposition.BLOCK if blocked else AssessmentDisposition.ALLOW_REVIEW,
+            checks=[ExternalCheck("network_policy", "completed"), ExternalCheck("deterministic_rules", "completed")],
+        )
+        return {"url": url, "assessment": assessment.to_dict(), "content_retrieved": True, "findings": len(report.findings)}
 
     def list_rules(self, rules_path: Optional[str] = None) -> Dict[str, Any]:
         registry = _load_rules(rules_path)
