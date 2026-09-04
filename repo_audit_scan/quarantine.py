@@ -38,7 +38,7 @@ def quarantine_repository(source: str, ref: str | None = None, root: str | None 
                 destination.relative_to(repo.resolve())
             tar.extractall(repo, filter="data")
         digest = hashlib.sha256(resolved.encode()).hexdigest()
-        source.chmod(0o555)
+        repo.chmod(0o555)
         return repo, {"origin": source, "resolved_ref": resolved, "content_digest": digest, "staging_root": str(staging)}
     except Exception:
         shutil.rmtree(staging, ignore_errors=True)

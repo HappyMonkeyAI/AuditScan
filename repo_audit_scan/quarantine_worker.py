@@ -11,7 +11,7 @@ import os
 import subprocess
 
 WORKER_IMAGE = os.environ.get("AUDITSCAN_WORKER_IMAGE", "repo-audit-scan-worker:local")
-WORKER_COMMAND = ("python", "-m", "repo_audit_scan", "scan", "/workspace", "--profile", "external_repo", "--no-write-reports", "--format", "json")
+WORKER_COMMAND = ("scan", "/workspace", "--profile", "external_repo", "--no-write-reports", "--format", "json")
 
 
 def build_scan_command(source: Path) -> list[str]:
@@ -34,7 +34,7 @@ def run_isolated_scan(source: Path, timeout: int = 120) -> dict:
     except subprocess.TimeoutExpired as exc:
         raise RuntimeError("isolated worker timed out") from exc
     if completed.returncode != 0:
-        raise RuntimeError(f"isolated worker failed with exit code {completed.returncode}")
+        raise RuntimeError(f"isolated worker failed with exit code {completed.returncode}: {completed.stderr[-1000:]}")
     try:
         return json.loads(completed.stdout)
     except json.JSONDecodeError as exc:
