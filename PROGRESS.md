@@ -1,8 +1,8 @@
 # AuditScan MVP — Progress Tracker
 
-**Last synced:** 2026-06-01 Phase 2 COMPLETE — **All Roadmap Items Done**
-**Total tasks:** 21 MVP + 5 Roadmap Phase 1.5 + 5 Roadmap Phase 2
-**Completed:** 21 MVP + 2 Phase-1.5 + 5 Phase-2 | **In Progress:** 0 | **Pending:** Phase 3 items already complete
+**Last synced:** 2026-09-04 — External Content Gate supervised beta acceptance verified
+**Total tasks:** 21 MVP + 5 Roadmap Phase 1.5 + 5 Roadmap Phase 2 + External Content Gate
+**Completed:** Core ECG implementation, isolated worker, fixed MCP probes, CI policy, and live GitHub acceptance | **In Progress:** production semantic-review provider is optional
 
 ---
 
@@ -22,6 +22,14 @@
 | **J — Safety** | T-018 complete | 🟢 Complete | Redaction/provenance + path containment |
 | **K — Tests** | T-019 ✅, T-020 ✅ | 🟢 Complete | Cross-cut suites + repo-shaped fixtures + end-to-end scan integration test |
 | **L — Docs** | T-021 ✅ | 🟢 Complete | README refreshed; ARCHITECTURE.md + TROUBLESHOOTING.md added |
+
+## External Content Gate — Supervised Beta
+
+- Live GitHub acceptance: `https://github.com/HappyMonkeyAI/AuditScan`, `main` resolved to `f020cd457520da51a54a8b68a8eacc7c88776d0f`.
+- Result: 52 findings, `blocked` / `block`; content digest `a1c82fae3272b048410ba5920926ce51419a475cb37b256b0a33e8f951dc2e10`.
+- Quarantine cleanup completed; install, execution, MCP registration, and memory writes denied.
+- Local beta acceptance: 230 tests passed; Docker fixed probes 4/4; native MCP discovery 26 tools.
+- Production semantic-review provider remains unconfigured by design; external assessments remain degraded / `needs_human_review` when no provider is available.
 
 ---
 
