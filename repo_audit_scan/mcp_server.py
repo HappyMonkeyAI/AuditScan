@@ -245,10 +245,19 @@ class MCPServer:
         """Run only fixed probes against an operator-configured MCP target."""
         results = [result.__dict__ for result in run_all_fixed_probes()]
         unavailable = any(result["status"] != "completed" for result in results)
+        checks = [{"name": f"probe:{result['name']}", "status": result["status"], "detail": result["detail"]} for result in results]
         return {
+            "target": {"kind": "operator_configured_mcp", "origin": "AUDITSCAN_TRUSTED_MCP_COMMAND"},
             "profile": "mcp_server",
             "status": "degraded" if unavailable else "complete",
             "disposition": "needs_human_review" if unavailable else "allow_review",
+            "checks": {
+                "completed": [item["name"] for item in checks if item["status"] == "completed"],
+                "skipped": [],
+                "failed": [item["name"] for item in checks if item["status"] == "failed"],
+                "unavailable": [item["name"] for item in checks if item["status"] == "unavailable"],
+            },
+            "check_details": checks,
             "probes": results,
             "policy": {"read_source": True, "install": False, "execute": False, "register_mcp": False, "write_memory": False},
             "untrusted_content": True,

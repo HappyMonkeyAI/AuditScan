@@ -1,6 +1,6 @@
 # External Content Gate — Tasks
 
-Status: proposed; documentation is complete, implementation is not started
+Status: implementation in progress; core gate slices complete; release hardening remains
 Source: `SPEC.md` v0.1
 
 ## Rules
@@ -104,7 +104,7 @@ Done when:
 
 ### ECG-012 — Integrate repo-security-scan as a bounded engine
 
-Status: proposed
+Status: complete (2026-09-04)
 Depends on: ECG-011
 Files likely to change:
 - `repo_audit_scan/external_content.py` (new)
@@ -122,7 +122,7 @@ Done when:
 
 ### ECG-020 — Implement URL network-policy module
 
-Status: proposed
+Status: complete (2026-09-04)
 Depends on: ECG-001, ECG-002
 Files likely to change:
 - `repo_audit_scan/external_fetch.py` (new)
@@ -137,7 +137,7 @@ Done when:
 
 ### ECG-021 — Add `inspect_external_link` MCP tool
 
-Status: proposed
+Status: complete (2026-09-04)
 Depends on: ECG-010, ECG-020
 Files likely to change:
 - `repo_audit_scan/mcp_server.py`
@@ -154,7 +154,7 @@ Done when:
 
 ### ECG-022 — Build quarantined GitHub checkout worker
 
-Status: proposed
+Status: complete (2026-09-04)
 Depends on: ECG-011, ECG-020
 Files likely to change:
 - `repo_audit_scan/quarantine.py` (new)
@@ -171,7 +171,7 @@ Done when:
 
 ### ECG-023 — Add `quarantine_and_scan_repository` MCP tool
 
-Status: proposed
+Status: complete (2026-09-04)
 Depends on: ECG-012, ECG-022
 Files likely to change:
 - `repo_audit_scan/mcp_server.py`
@@ -189,7 +189,7 @@ Done when:
 
 ### ECG-030 — Implement constrained semantic-review adapter
 
-Status: proposed
+Status: implemented baseline; provider wiring and release validation remain
 Depends on: ECG-010, ECG-011
 Files likely to change:
 - `repo_audit_scan/semantic_review.py` (new)
@@ -205,7 +205,7 @@ Done when:
 
 ### ECG-031 — Add SARIF writer and validator
 
-Status: proposed
+Status: complete (2026-09-04)
 Depends on: ECG-001, ECG-010
 Files likely to change:
 - `repo_audit_scan/sarif.py` (new)
@@ -220,7 +220,7 @@ Done when:
 
 ### ECG-032 — Create immutable GitHub Action workflow
 
-Status: proposed
+Status: complete (2026-09-04)
 Depends on: ECG-030, ECG-031
 Files likely to change:
 - `.github/workflows/external-content-gate.yml` (new)
@@ -237,7 +237,7 @@ Done when:
 
 ### ECG-040 — Define fixed probe contract and isolated runner
 
-Status: proposed
+Status: complete (2026-09-04)
 Depends on: ECG-002, ECG-022, ECG-030
 Files likely to change:
 - `repo_audit_scan/mcp_probe_runner.py` (new)
@@ -253,7 +253,7 @@ Done when:
 
 ### ECG-041 — Expose bounded MCP-target assessment
 
-Status: proposed
+Status: complete (2026-09-04)
 Depends on: ECG-040
 Files likely to change:
 - `repo_audit_scan/mcp_server.py`
