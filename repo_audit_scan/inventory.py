@@ -29,6 +29,8 @@ DEFAULT_EXCLUDES = [
     "*.so",
     "build/**",
     "dist/**",
+    "**/dist/**",
+    "**/.next/**",
     ".pytest_cache/**",
     ".mypy_cache/**",
     ".ruff_cache/**",
