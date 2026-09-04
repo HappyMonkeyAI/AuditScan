@@ -201,11 +201,15 @@ class MCPServer:
             path.write_text(fetched.content, encoding="utf-8")
             report = _scan_repository(path.parent, _load_rules(rules_path), profile="external_repo")
         blocked = any(f.severity.value in {"critical", "high"} and f.rule_id.startswith("ecg-") for f in report.findings)
+        degraded = bool(report.assessment and report.assessment.disposition.value == "needs_human_review")
+        checks = [ExternalCheck("network_policy", "completed"), ExternalCheck("deterministic_rules", "completed")]
+        if report.assessment:
+            checks.extend(report.assessment.checks)
         assessment = ExternalAssessment(
             target=ExternalTarget(kind="link", origin=url), profile="external_link",
-            status=AssessmentStatus.BLOCKED if blocked else AssessmentStatus.COMPLETE,
-            disposition=AssessmentDisposition.BLOCK if blocked else AssessmentDisposition.ALLOW_REVIEW,
-            checks=[ExternalCheck("network_policy", "completed"), ExternalCheck("deterministic_rules", "completed")],
+            status=AssessmentStatus.BLOCKED if blocked else (AssessmentStatus.DEGRADED if degraded else AssessmentStatus.COMPLETE),
+            disposition=AssessmentDisposition.BLOCK if blocked else (AssessmentDisposition.NEEDS_HUMAN_REVIEW if degraded else AssessmentDisposition.ALLOW_REVIEW),
+            checks=checks,
         )
         return {"url": url, "assessment": assessment.to_dict(), "content_retrieved": True, "findings": len(report.findings)}
 
