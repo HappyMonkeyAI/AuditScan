@@ -161,7 +161,8 @@ def test_external_repo_profile_allows_benign_threejs_fixture(capsys):
     payload = json.loads(capsys.readouterr().out)
 
     assert code == 0
-    assert payload["assessment"]["disposition"] == "allow_review"
+    assert payload["assessment"]["status"] == "degraded"
+    assert payload["assessment"]["disposition"] == "needs_human_review"
 
 
 def test_scan_command_enrichment_flag_is_fail_open(tmp_path, capsys, monkeypatch):

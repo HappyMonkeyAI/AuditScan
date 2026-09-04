@@ -14,6 +14,7 @@ from repo_audit_scan import __version__
 from repo_audit_scan.adapter_registry import AdapterRegistry
 from repo_audit_scan.adapters_final import ScanContext
 from repo_audit_scan.dependency_enrichment import scan_dependencies
+from repo_audit_scan.external_content import run_repo_security_scan
 from repo_audit_scan.inventory import FilesystemWalker
 from repo_audit_scan.logging_setup import setup_logging
 from repo_audit_scan.models import (
@@ -95,6 +96,10 @@ def _scan_repository(
         fail_open=fail_open_on_enrichment_error,
     )
     rule_results.extend(dependency_results)
+    external_engine_metadata = None
+    if profile == "external_repo":
+        external_results, external_engine_metadata = run_repo_security_scan(repo_path)
+        rule_results.extend(external_results)
 
     findings: List[Finding] = []
     for index, result in enumerate(rule_results, start=1):
@@ -147,12 +152,17 @@ def _scan_repository(
     if profile == "external_repo":
         external_findings = [f for f in findings if f.rule_id.startswith("ecg-")]
         blocked = any(f.severity.value in {"critical", "high"} for f in external_findings)
+        engine_unavailable = external_engine_metadata and external_engine_metadata["status"] != "completed"
+        checks = [ExternalCheck("deterministic_rules", "completed")]
+        if external_engine_metadata:
+            checks.append(ExternalCheck("repo_security_scan", external_engine_metadata["status"], external_engine_metadata.get("detail")))
+        needs_review = bool(engine_unavailable)
         assessment = ExternalAssessment(
             target=ExternalTarget(kind="staged_path", origin=str(repo_path)),
             profile=profile,
-            status=AssessmentStatus.BLOCKED if blocked else AssessmentStatus.COMPLETE,
-            disposition=AssessmentDisposition.BLOCK if blocked else AssessmentDisposition.ALLOW_REVIEW,
-            checks=[ExternalCheck("deterministic_rules", "completed")],
+            status=AssessmentStatus.BLOCKED if blocked else (AssessmentStatus.DEGRADED if needs_review else AssessmentStatus.COMPLETE),
+            disposition=AssessmentDisposition.BLOCK if blocked else (AssessmentDisposition.NEEDS_HUMAN_REVIEW if needs_review else AssessmentDisposition.ALLOW_REVIEW),
+            checks=checks,
         )
     return Report(
         report_id=_new_report_id(),
