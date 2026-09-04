@@ -32,6 +32,7 @@ from repo_audit_scan.models import AssessmentDisposition, AssessmentStatus, Exte
 from repo_audit_scan.external_fetch import fetch_external_text
 from repo_audit_scan.quarantine import quarantine_repository
 from repo_audit_scan.quarantine_worker import run_isolated_scan
+from repo_audit_scan.mcp_probe_runner import run_all_fixed_probes
 import shutil
 from repo_audit_scan.reporting import JSONReportWriter, ReportArtifactWriter
 from repo_audit_scan.triage import TriageArtifactWriter
@@ -83,6 +84,7 @@ class MCPServer:
         self.register_tool("scan_repository", self.scan_repository)
         self.register_tool("inspect_external_link", self.inspect_external_link)
         self.register_tool("quarantine_and_scan_repository", self.quarantine_and_scan_repository)
+        self.register_tool("assess_configured_mcp_target", self.assess_configured_mcp_target)
         self.register_tool("list_rules", self.list_rules)
         self.register_tool("get_finding", self.get_finding)
         self.register_tool("triage_report", self.triage_report)
@@ -238,6 +240,19 @@ class MCPServer:
             return result
         finally:
             shutil.rmtree(staging_root, ignore_errors=True)
+
+    def assess_configured_mcp_target(self) -> Dict[str, Any]:
+        """Run only fixed probes against an operator-configured MCP target."""
+        results = [result.__dict__ for result in run_all_fixed_probes()]
+        unavailable = any(result["status"] != "completed" for result in results)
+        return {
+            "profile": "mcp_server",
+            "status": "degraded" if unavailable else "complete",
+            "disposition": "needs_human_review" if unavailable else "allow_review",
+            "probes": results,
+            "policy": {"read_source": True, "install": False, "execute": False, "register_mcp": False, "write_memory": False},
+            "untrusted_content": True,
+        }
 
     def list_rules(self, rules_path: Optional[str] = None) -> Dict[str, Any]:
         registry = _load_rules(rules_path)
