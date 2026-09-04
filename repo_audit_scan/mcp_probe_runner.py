@@ -24,6 +24,9 @@ def run_fixed_probe(target: str, probe: str) -> ProbeResult:
     if not command_text:
         return ProbeResult(probe, "unavailable", "trusted MCP target command is not configured")
     command = shlex.split(command_text, posix=False)
+    image = os.environ.get("AUDITSCAN_TRUSTED_MCP_IMAGE", "").strip()
+    if image:
+        command = ["docker", "run", "--rm", "-i", "--network", "none", "--read-only", "--cpus", "1", "--memory", "256m", "--pids-limit", "64", image, *command]
     requests = [
         {"jsonrpc":"2.0", "id":1, "method":"initialize", "params":{}},
         {"jsonrpc":"2.0", "id":2, "method":"tools/call", "params":{"name":f"auditscan_probe_{probe}","arguments":{}}},
