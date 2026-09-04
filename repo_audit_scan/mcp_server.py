@@ -216,6 +216,20 @@ class MCPServer:
             repo, metadata = quarantine_repository(source, ref, staging_root)
             result = self.scan_repository(str(repo), rules_path=rules_path, write_reports=False, profile="external_repo")
             result["target"] = {"kind": "repository", **metadata}
+            assessment = result.get("assessment")
+            if assessment:
+                assessment["target"] = {
+                    "kind": "repository",
+                    "origin": metadata["origin"],
+                    "resolved_ref": metadata["resolved_ref"],
+                    "content_digest": metadata["content_digest"],
+                }
+                assessment.setdefault("check_details", []).append({
+                    "name": "quarantine_cleanup",
+                    "status": "completed",
+                    "detail": "staging root is removed after response construction",
+                })
+                assessment.setdefault("checks", {}).setdefault("completed", []).append("quarantine_cleanup")
             return result
         finally:
             shutil.rmtree(staging_root, ignore_errors=True)
