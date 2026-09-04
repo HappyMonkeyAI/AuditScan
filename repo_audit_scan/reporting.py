@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
 from repo_audit_scan.models import Evidence, Finding, Report, Severity
+from repo_audit_scan.sarif import write_sarif
 from repo_audit_scan.redaction import SecretRedactor
 
 
@@ -262,4 +263,10 @@ class ReportArtifactWriter:
         return {
             "json": self.json_writer.write(report, directory / "report.json"),
             "markdown": self.markdown_writer.write(report, directory / "report.md"),
+            "sarif": self._write_sarif(report, directory / "report.sarif.json"),
         }
+
+    @staticmethod
+    def _write_sarif(report: Report, path: Path) -> Path:
+        write_sarif(report, str(path))
+        return path
