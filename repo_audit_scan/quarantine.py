@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import hashlib
-import os
+import io
 import re
 import shutil
 import subprocess
 import tempfile
+import tarfile
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -25,11 +26,17 @@ def quarantine_repository(source: str, ref: str | None = None, root: str | None 
     try:
         repo = staging / "source"
         subprocess.run([
-            "git", "-c", "core.hooksPath=NUL", "clone", "--no-checkout", "--no-recurse-submodules", source, str(repo)
+            "git", "-c", "protocol.file.allow=never", "-c", "core.hooksPath=NUL",
+            "clone", "--no-checkout", "--no-recurse-submodules", source, str(repo)
         ], check=True, capture_output=True, text=True, timeout=120)
         wanted = ref or "HEAD"
         resolved = subprocess.run(["git", "-C", str(repo), "rev-parse", f"{wanted}^{{commit}}"], check=True, capture_output=True, text=True, timeout=30).stdout.strip()
-        subprocess.run(["git", "-C", str(repo), "-c", "core.hooksPath=NUL", "checkout", "--no-recurse-submodules", resolved], check=True, capture_output=True, text=True, timeout=60)
+        archive = subprocess.run(["git", "-C", str(repo), "archive", "--format=tar", resolved], check=True, capture_output=True, timeout=60).stdout
+        with tarfile.open(fileobj=io.BytesIO(archive), mode="r:") as tar:
+            for member in tar.getmembers():
+                destination = (repo / member.name).resolve()
+                destination.relative_to(repo.resolve())
+            tar.extractall(repo, filter="data")
         digest = hashlib.sha256(resolved.encode()).hexdigest()
         source.chmod(0o555)
         return repo, {"origin": source, "resolved_ref": resolved, "content_digest": digest, "staging_root": str(staging)}
