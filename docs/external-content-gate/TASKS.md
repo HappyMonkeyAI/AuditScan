@@ -65,7 +65,7 @@ Done when:
 
 ### ECG-010 — Implement deterministic external-content rule family
 
-Status: proposed
+Status: complete (2026-09-04)
 Depends on: ECG-001, ECG-002
 Files likely to change:
 - `repo_audit_scan/rules.py`

@@ -539,7 +539,7 @@ class TestCICDAdapter:
         assert registry.resolve_language(".github/workflows/ci.yml") == "ci-cd"
         adapter = registry.resolve_adapter("Jenkinsfile")
         assert adapter is not None and adapter.language == "ci-cd"
-        assert registry.count_adapters() == 7
+        assert registry.count_adapters() == 8
         assert "ci-cd" in registry.supported_languages()
 
     def _cicd_rules(self):
@@ -973,7 +973,7 @@ class TestIntegration:
         registry = get_registry()
         adapter = registry.resolve_adapter("README.md")
 
-        assert adapter is None  # Markdown not supported
+        assert adapter is not None and adapter.language == "external-content"
 
 
 # ---------------------------------------------------------------------------

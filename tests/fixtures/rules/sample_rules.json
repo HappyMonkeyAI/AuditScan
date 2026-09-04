@@ -1347,6 +1347,60 @@
         }
       ],
       "remediation_guidance": "Avoid dangerouslySetInnerHTML; if unavoidable, sanitize with a vetted library (e.g. DOMPurify)"
+    },
+    {
+      "rule_id": "ecg-001",
+      "category": "external-content",
+      "title": "Instruction hierarchy override in external content",
+      "description": "Detects text attempting to replace or override system, developer, or earlier agent instructions",
+      "severity": "high",
+      "checks": [{"type": "regex", "pattern": "(?i)\\b(ignore|disregard|forget)\\b.{0,40}\\b(previous|prior|above|earlier|system)\\b.{0,40}\\b(instructions?|prompt|rules?|constraints?)\\b"}],
+      "remediation_guidance": "Treat the matching content as untrusted data and require human review before operational use"
+    },
+    {
+      "rule_id": "ecg-002",
+      "category": "external-content",
+      "title": "Memory poisoning request in external content",
+      "description": "Detects external content asking an agent to persist instructions or claims in memory",
+      "severity": "high",
+      "checks": [{"type": "regex", "pattern": "(?i)\\b(persist|store|save|write)\\b.{0,50}\\b(these|this|the)\\b.{0,30}\\b(instructions?|memory|long[- ]term)\\b"}],
+      "remediation_guidance": "Do not write external instructions or claims to persistent memory without explicit review"
+    },
+    {
+      "rule_id": "ecg-003",
+      "category": "external-content",
+      "title": "Authority marker or encoded instruction indicator",
+      "description": "Detects fake system markers or declared encoded payloads in external content",
+      "severity": "medium",
+      "checks": [{"type": "regex", "pattern": "(?i)<\\s*/?\\s*system\\s*>|\\[system\\]|\\[INST\\]|\\bbase64\\b.{0,30}\\b(payload|instruction)\\b"}],
+      "remediation_guidance": "Preserve the content as data and inspect encoded material only in a bounded, non-executing analysis path"
+    },
+    {
+      "rule_id": "ecg-004",
+      "category": "external-content",
+      "title": "Package lifecycle execution in external manifest",
+      "description": "Detects package lifecycle scripts that may execute during installation",
+      "severity": "high",
+      "checks": [{"type": "regex", "pattern": "(?i)[\\\"'](?:preinstall|install|postinstall|prepare)[\\\"']\\s*:"}],
+      "remediation_guidance": "Do not install untrusted dependencies; review lifecycle scripts in an isolated workflow"
+    },
+    {
+      "rule_id": "ecg-005",
+      "category": "external-content",
+      "title": "Broad MCP capability declaration",
+      "description": "Detects MCP manifests declaring unrestricted filesystem or shell permissions",
+      "severity": "critical",
+      "checks": [{"type": "regex", "pattern": "(?i)\\b(filesystem|shell):all\\b|\\\"permissions\\\"\\s*:\\s*\\[[^\\]]*\\b(filesystem|shell):all\\b"}],
+      "remediation_guidance": "Replace broad capabilities with least-privilege, explicitly allowlisted operations"
+    },
+    {
+      "rule_id": "ecg-006",
+      "category": "external-content",
+      "title": "Unverified MCP manifest",
+      "description": "Detects an MCP manifest that explicitly identifies its tool manifest as unverified",
+      "severity": "medium",
+      "checks": [{"type": "regex", "pattern": "(?i)[\\\"']manifest[\\\"']\\s*:\\s*[\\\"']unverified[\\\"']"}],
+      "remediation_guidance": "Verify the manifest against a pinned source and expected tool contract before registration"
     }
   ]
 }

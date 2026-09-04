@@ -637,6 +637,35 @@ class CICDAdapter(LanguageAdapter):
         return _scan_regex_checks(self, context, rule)
 
 
+class ExternalContentAdapter(LanguageAdapter):
+    """Adapter for documentation and manifests from untrusted sources.
+
+    This adapter only evaluates declarative regex checks. It never parses,
+    imports, installs, decodes, or executes target content.
+    """
+
+    _NAMES = {"readme.md", "readme.txt", "package.json", "mcp.json", "mcp.yaml", "mcp.yml"}
+
+    @property
+    def language(self) -> str:
+        return "external-content"
+
+    @property
+    def supported_frameworks(self) -> List[str]:
+        return ["external-repository", "mcp-manifest"]
+
+    def detect_language(self, file_path: str) -> bool:
+        path = file_path.replace("\\", "/")
+        name = path.rsplit("/", 1)[-1].lower()
+        return name in self._NAMES
+
+    def supports_rule(self, rule: Rule) -> bool:
+        return (rule.category or "").lower() == "external-content"
+
+    def scan(self, context: ScanContext, rule: Rule) -> List[RuleResult]:
+        return _scan_regex_checks(self, context, rule)
+
+
 class DockerAdapter(LanguageAdapter):
     """Adapter for Dockerfiles and docker-compose manifests."""
 

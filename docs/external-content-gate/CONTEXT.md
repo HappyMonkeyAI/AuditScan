@@ -8,8 +8,8 @@ Packet: `docs/external-content-gate/`
 ## Current verified state
 
 - AuditScan is a Python scanner with a working stdio MCP server on this desktop. A native MCP test discovered 23 tools and its self-check passed.
-- The current rule registry contains 133 rules across source, configuration, dependency, Docker, and CI/CD categories.
-- AuditScan already redacts secret-like evidence and labels report evidence as untrusted scanner input. Its prompt-injection-like heuristic currently operates during reporting; it is not a dedicated external-content rule family.
+- The current rule registry contains 139 rules across source, configuration, dependency, Docker, CI/CD, and external-content categories.
+- AuditScan redacts secret-like evidence, labels report evidence as untrusted scanner input, and now has a dedicated six-rule external-content family for the ECG-010 surfaces.
 - `scan_repository` resolves and scans an existing path. It does not yet restrict requests to a quarantine root or fetch remote repositories.
 - `repo-security-scan` is a separate secret scanner. It should be invoked as an engine, not exposed as a second always-on MCP surface.
 - Hermes on this desktop has effective secret redaction enabled and smart command approvals. These are defence-in-depth controls, not a substitute for untrusted-content assessment.

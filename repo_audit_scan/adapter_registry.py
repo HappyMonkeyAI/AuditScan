@@ -19,6 +19,7 @@ from repo_audit_scan.adapters_final import (
     PhpAdapter,
     CICDAdapter,
     DockerAdapter,
+    ExternalContentAdapter,
 )
 
 
@@ -45,6 +46,7 @@ class AdapterRegistry:
             PhpAdapter(),
             CICDAdapter(),
             DockerAdapter(),
+            ExternalContentAdapter(),
         ]
 
         for adapter in builtin_adapters:

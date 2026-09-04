@@ -15,8 +15,8 @@ true positives and the absence of false positives. The repo-shaped fixtures
 | `js_app/` | JS/TS sinks: exec/SSRF/eval/proto/localStorage/XSS ({vulnerable,safe}). | #5 |
 | `cicd_github_actions/` | GitHub Actions detectors, unit-level ({vulnerable,safe}). | — |
 | `mixed_language_repo/` | Inventory/walker fixture: language & framework detection, excludes, binary, size. | — |
-| `rules/sample_rules.json` | The bundled rule set (133 rules / 25 categories). | — |
-| `external_content/` | Hostile external-content surfaces plus benign Three.js documentation; read-only fixture baseline for ECG-002. | ECG-002 |
+| `rules/sample_rules.json` | The bundled rule set (139 rules / 26 categories). | — |
+| `external_content/` | Hostile external-content surfaces plus benign Three.js documentation; read-only fixture baseline for ECG-002/ECG-010. | ECG-002/ECG-010 |
 
 Notes:
 - A "safe" fixture must never name a banned token in a comment — a bare-substring

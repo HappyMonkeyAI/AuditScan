@@ -36,9 +36,9 @@ repo-audit-scan verify <report-or-report-id> <finding-id>
 
 ## Coverage
 
-**Adapters (6):** Python, JavaScript/TypeScript, PHP/WordPress, and CI/CD (GitHub Actions and common pipelines) are MVP-complete; Java and C#/.NET are loadable per the adapter contract with seed-level rules. Language adapters are matched by file extension; the CI/CD adapter is matched by path/filename (`.github/workflows/*.yml`, `Jenkinsfile`, `.gitlab-ci.yml`, `.circleci/config.yml`, `azure-pipelines.yml`, `.travis.yml`).
+**Adapters (8):** Python, JavaScript/TypeScript, PHP/WordPress, CI/CD (GitHub Actions and common pipelines), Docker, and external-content are supported; Java and C#/.NET are loadable per the adapter contract with seed-level rules. Language adapters are matched by file extension; the CI/CD adapter is matched by path/filename (`.github/workflows/*.yml`, `Jenkinsfile`, `.gitlab-ci.yml`, `.circleci/config.yml`, `azure-pipelines.yml`, `.travis.yml`).
 
-**Rules:** 124 rules across 25 categories — secrets, injection, access-control, authentication, cryptography, deserialization, api-security, xss, configuration, file-operations, ci-cd, dependency, and more. Findings are deduplicated and can be manually confirmed or dismissed without losing the audit trail.
+**Rules:** 139 rules across 26 categories — including secrets, injection, external-content, access-control, authentication, cryptography, deserialization, api-security, xss, configuration, file-operations, ci-cd, dependency, and more. Findings are deduplicated and can be manually confirmed or dismissed without losing the audit trail.
 
 **Scoring:** Each finding is scored on Impact, Accessibility, and Necessity (weighted 0.40 / 0.35 / 0.25), classified into a compromise mode (cover / triage / assume-breach), and eligible for chain detection that can raise an attacker path above isolated findings.
 

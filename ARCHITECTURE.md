@@ -52,7 +52,7 @@ the result set before scoring.
 | `inventory.py` | `FilesystemWalker` + `RepositoryInventory`: directory walk with `.gitignore`-style excludes, 10 MB per-file cap, symlink guards; language detection by extension; framework detection by marker files. `git_utils.py` adds Git metadata with graceful degradation. |
 | `rules.py` | `Rule` dataclass, `RuleRegistry` (load/get/list by id and category), `DuplicationHandler` (aggregate repeated matches into one finding with an evidence array), `ManualConfirmation` (confirmed/dismissed/deferred without deleting findings). |
 | `scoring.py` | `IANScorer` (severity→impact, confidence→accessibility, category→necessity; composite = 0.40·I + 0.35·A + 0.25·N), `CompromiseModeClassifier`, `ChainDetector`. |
-| `adapters_final.py` | `LanguageAdapter` ABC + `ScanContext`; six adapters (Python, JavaScript/TS, Java, C#, PHP/WordPress, CI/CD); shared `_scan_regex_checks` helper; `extract_evidence` for line/column/snippet. |
+| `adapters_final.py` | `LanguageAdapter` ABC + `ScanContext`; eight adapters (Python, JavaScript/TS, Java, C#, PHP/WordPress, CI/CD, Docker, external-content); shared `_scan_regex_checks` helper; `extract_evidence` for line/column/snippet. |
 | `adapter_registry.py` | `AdapterRegistry` — builtin loading, `resolve_adapter`/`resolve_language`, custom registration, extension map. |
 | `reporting.py` | JSON + Markdown writers; stable metadata, severity counts, IAN-ordered findings, redacted evidence, provenance + prompt-injection warnings. |
 | `triage.py` | Ticket-ready triage Markdown (findings framed as hypotheses, IAN ordering, acceptance criteria, verification steps) + scan-review journal. |
