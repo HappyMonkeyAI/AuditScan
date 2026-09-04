@@ -31,6 +31,7 @@ from repo_audit_scan.models import Report
 from repo_audit_scan.models import AssessmentDisposition, AssessmentStatus, ExternalAssessment, ExternalCheck, ExternalTarget
 from repo_audit_scan.external_fetch import fetch_external_text
 from repo_audit_scan.quarantine import quarantine_repository
+from repo_audit_scan.quarantine_worker import run_isolated_scan
 import shutil
 from repo_audit_scan.reporting import JSONReportWriter, ReportArtifactWriter
 from repo_audit_scan.triage import TriageArtifactWriter
@@ -218,7 +219,7 @@ class MCPServer:
         staging_root = tempfile.mkdtemp(prefix="auditscan-worker-")
         try:
             repo, metadata = quarantine_repository(source, ref, staging_root)
-            result = self.scan_repository(str(repo), rules_path=rules_path, write_reports=False, profile="external_repo")
+            result = run_isolated_scan(repo)
             result["target"] = {"kind": "repository", **metadata}
             assessment = result.get("assessment")
             if assessment:
