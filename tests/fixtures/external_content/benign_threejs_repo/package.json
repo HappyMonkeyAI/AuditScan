@@ -1,0 +1,6 @@
+{
+  "name": "benign-threejs-fixture",
+  "version": "1.0.0",
+  "scripts": {"dev": "vite"},
+  "dependencies": {"three": "0.178.0", "vite": "7.0.0"}
+}

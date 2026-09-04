@@ -33,7 +33,7 @@ Done when:
 
 ### ECG-002 — Add hostile and benign repository fixtures
 
-Status: proposed
+Status: complete (2026-09-04)
 Depends on: ECG-001
 Files likely to change:
 - `tests/fixtures/external_content/` (new)
