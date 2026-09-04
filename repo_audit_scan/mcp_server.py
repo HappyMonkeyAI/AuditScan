@@ -30,6 +30,8 @@ from repo_audit_scan.adversarial_reporting import write_assurance_artifacts
 from repo_audit_scan.models import Report
 from repo_audit_scan.models import AssessmentDisposition, AssessmentStatus, ExternalAssessment, ExternalCheck, ExternalTarget
 from repo_audit_scan.external_fetch import fetch_external_text
+from repo_audit_scan.quarantine import quarantine_repository
+import shutil
 from repo_audit_scan.reporting import JSONReportWriter, ReportArtifactWriter
 from repo_audit_scan.triage import TriageArtifactWriter
 from repo_audit_scan.living_docs import (
@@ -79,6 +81,7 @@ class MCPServer:
         self.register_tool("server.get_status", self.get_status)
         self.register_tool("scan_repository", self.scan_repository)
         self.register_tool("inspect_external_link", self.inspect_external_link)
+        self.register_tool("quarantine_and_scan_repository", self.quarantine_and_scan_repository)
         self.register_tool("list_rules", self.list_rules)
         self.register_tool("get_finding", self.get_finding)
         self.register_tool("triage_report", self.triage_report)
@@ -205,6 +208,17 @@ class MCPServer:
             checks=[ExternalCheck("network_policy", "completed"), ExternalCheck("deterministic_rules", "completed")],
         )
         return {"url": url, "assessment": assessment.to_dict(), "content_retrieved": True, "findings": len(report.findings)}
+
+    def quarantine_and_scan_repository(self, source: str, ref: Optional[str] = None, rules_path: Optional[str] = None) -> Dict[str, Any]:
+        """Checkout a GitHub repository into disposable quarantine and scan it read-only."""
+        staging_root = tempfile.mkdtemp(prefix="auditscan-worker-")
+        try:
+            repo, metadata = quarantine_repository(source, ref, staging_root)
+            result = self.scan_repository(str(repo), rules_path=rules_path, write_reports=False, profile="external_repo")
+            result["target"] = {"kind": "repository", **metadata}
+            return result
+        finally:
+            shutil.rmtree(staging_root, ignore_errors=True)
 
     def list_rules(self, rules_path: Optional[str] = None) -> Dict[str, Any]:
         registry = _load_rules(rules_path)
