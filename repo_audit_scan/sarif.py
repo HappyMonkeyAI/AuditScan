@@ -24,6 +24,24 @@ def report_to_sarif(report: Report) -> dict[str, Any]:
 
 
 def write_sarif(report: Report, path: str) -> None:
+    payload = report_to_sarif(report)
+    validate_sarif(payload)
     with open(path, "w", encoding="utf-8") as handle:
-        json.dump(report_to_sarif(report), handle, indent=2)
+        json.dump(payload, handle, indent=2)
         handle.write("\n")
+
+
+def validate_sarif(payload: dict[str, Any]) -> None:
+    """Validate the required SARIF envelope before publication."""
+    if payload.get("version") != "2.1.0" or not isinstance(payload.get("runs"), list) or not payload["runs"]:
+        raise ValueError("invalid SARIF 2.1.0 envelope")
+    for run in payload["runs"]:
+        if not isinstance(run, dict) or not isinstance(run.get("tool", {}).get("driver"), dict):
+            raise ValueError("SARIF run is missing tool.driver")
+        driver = run["tool"]["driver"]
+        if driver.get("name") != "repo-audit-scan" or not isinstance(run.get("results"), list):
+            raise ValueError("SARIF driver or results are invalid")
+        rule_ids = {rule.get("id") for rule in driver.get("rules", []) if isinstance(rule, dict)}
+        for result in run["results"]:
+            if result.get("ruleId") not in rule_ids or not isinstance(result.get("message", {}).get("text"), str):
+                raise ValueError("SARIF result is not linked to a declared rule")
