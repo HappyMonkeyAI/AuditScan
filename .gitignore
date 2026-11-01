@@ -21,3 +21,6 @@ dist/
 
 # Project manifest — may contain non-public project detail; keep local only
 project.json
+
+# local protocol overlay (ADR-0003)
+MCP.local.md

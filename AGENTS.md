@@ -537,3 +537,8 @@ or reframed:
 - Destructive action: ask first.
 
 *Maximise momentum. Minimise gravity.*
+
+## Session start and end (Spine) — ADR-0005
+If the `spine` MCP is available, call `session_brief(project="auditscan")` (or the absolute path of this repo) first and use `get_section` / `recall` instead of reading PROGRESS.md or CONTEXT.md whole. Without the MCP, run `spine brief` from the repo root. If neither works, ground normally — never block the session on Spine.
+Before you stop, call `checkpoint` with your agent name (e.g. `hermes`), what was done, what's next and any blockers. Save durable why/gotcha/decision facts with `record_memory`. Prefer `checkpoint` over free-form PROGRESS.md appends when Spine is available.
+Shared protocol law: [HappyMonkeyAI AgentsProtocol](https://github.com/HappyMonkeyAI/AgentsProtocol) (ADR-0005 Spine warm-start).
